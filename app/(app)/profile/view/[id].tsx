@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -82,12 +83,16 @@ export default function ViewProfileScreen() {
   const params = useLocalSearchParams();
   const profileId = params.id as string;
   const { showToast } = useToast();
-  
+  const { user } = useAuth();
+
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'projects'>('profile');
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  
+
+  // Verificar se o usuário está visualizando seu próprio perfil
+  const isOwnProfile = user?.uid === profileId;
+
   // Carregar dados do perfil
   useEffect(() => {
     loadProfileData();
@@ -100,11 +105,11 @@ export default function ViewProfileScreen() {
         showToast('ID do perfil não fornecido', 'error');
         return;
       }
-      
+
       // Buscar dados do perfil no Firestore
       const profileRef = doc(db, 'profiles', profileId);
       const profileDoc = await getDoc(profileRef);
-      
+
       if (profileDoc.exists()) {
         const data = profileDoc.data();
         setProfileData({
@@ -130,7 +135,7 @@ export default function ViewProfileScreen() {
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
       showToast('Erro ao carregar dados do perfil', 'error');
-      
+
       // Para fins de demonstração, criar perfil fictício
       const mockProfile: ProfileData = createMockProfile(profileId);
       setProfileData(mockProfile);
@@ -234,7 +239,7 @@ export default function ViewProfileScreen() {
   // Funções para abrir URLs
   const openUrl = (url?: string) => {
     if (!url) return;
-    
+
     Linking.canOpenURL(url).then(supported => {
       if (supported) {
         Linking.openURL(url);
@@ -243,17 +248,17 @@ export default function ViewProfileScreen() {
       }
     });
   };
-  
+
   // Função para dar like/match em um projeto
   const likeProject = (projectId: string) => {
     Alert.alert('Match!', 'Você deu match neste projeto. Em breve implementaremos esta funcionalidade completamente!');
     // Implementação futura: atualizar contagem de likes no Firestore
   };
-  
+
   // Abrir vídeo do projeto
   const openVideo = (videoUrl?: string) => {
     if (!videoUrl) return;
-    
+
     // Implementação futura: modal de vídeo ou usar Linking para abrir
     Linking.openURL(videoUrl);
   };
@@ -269,7 +274,7 @@ export default function ViewProfileScreen() {
       showToast('Erro ao compartilhar perfil', 'error');
     }
   };
-  
+
   // Compartilhar projeto
   const shareProject = async (project: ProfileData['projects'][0]) => {
     try {
@@ -285,10 +290,28 @@ export default function ViewProfileScreen() {
   // Iniciar chat
   const startChat = () => {
     if (!profileData) return;
-    
+
     // Implementação futura
     Alert.alert('Mensagem', `Iniciar conversa com ${profileData.name}`);
     // router.push(`/messages/chat/${profileId}`);
+  };
+
+  // Navegar para edição de perfil
+  const navigateToEditProfile = () => {
+    if (isOwnProfile) {
+      router.push('/profile/edit');
+    }
+  };
+
+  const navigateToEditProject = (projectId: string) => {
+    if (isOwnProfile) {
+      router.push(`/projects/edit/${projectId}`);
+    }
+  };  // Navegar para adicionar projeto
+  const navigateToAddProject = () => {
+    if (isOwnProfile) {
+      router.push('/projects/add');
+    }
   };
 
   // Se estiver carregando, mostrar skeleton
@@ -317,9 +340,9 @@ export default function ViewProfileScreen() {
           <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
             Não foi possível carregar o perfil
           </Text>
-          <Button 
-            title="Tentar novamente" 
-            onPress={loadProfileData} 
+          <Button
+            title="Tentar novamente"
+            onPress={loadProfileData}
             style={styles.retryButton}
           />
         </View>
@@ -328,14 +351,14 @@ export default function ViewProfileScreen() {
   }
 
   // Encontrar o projeto selecionado
-  const selectedProjectData = selectedProject 
-    ? profileData.projects.find(p => p.id === selectedProject) 
+  const selectedProjectData = selectedProject
+    ? profileData.projects.find(p => p.id === selectedProject)
     : null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar style="auto" />
-      
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -350,17 +373,19 @@ export default function ViewProfileScreen() {
           onShare={shareProfile}
           onMessage={startChat}
           theme={theme}
+          isOwnProfile={isOwnProfile}
+          onEdit={navigateToEditProfile}
         />
-        
+
         {/* Tabs de navegação */}
         <ProfileTabs
           activeTab={activeTab}
           onChangeTab={setActiveTab}
           theme={theme}
         />
-        
+
         <Divider spacing={8} />
-        
+
         {/* Conteúdo da aba de perfil */}
         {activeTab === 'profile' && !selectedProject && (
           <>
@@ -369,50 +394,68 @@ export default function ViewProfileScreen() {
               skills={profileData.skills}
               theme={theme}
             />
-            
+
             <Divider spacing={24} />
-            
+
             <ExperiencesSection
               experiences={profileData.experience}
               theme={theme}
             />
-            
+
             <Divider spacing={24} />
-            
+
             <EducationSection
               education={profileData.education}
               theme={theme}
             />
-            
+
             <Divider spacing={24} />
-            
+
             <LanguagesSection
               languages={profileData.languages}
               theme={theme}
             />
-            
-            <View style={styles.contactSection}>
-              <Button
-                title="Enviar mensagem"
-                onPress={startChat}
-                style={styles.contactButton}
-                fullWidth
-              />
-            </View>
+
+            {/* Só mostrar botão de mensagem se não for o próprio perfil */}
+            {!isOwnProfile && (
+              <View style={styles.contactSection}>
+                <Button
+                  title="Enviar mensagem"
+                  onPress={startChat}
+                  style={styles.contactButton}
+                  fullWidth
+                />
+              </View>
+            )}
+
+            {/* Mostrar botão de edição se for o próprio perfil */}
+            {isOwnProfile && (
+              <View style={styles.contactSection}>
+                <Button
+                  title="Editar perfil"
+                  onPress={navigateToEditProfile}
+                  style={styles.contactButton}
+                  fullWidth
+                  variant="outline"
+                />
+              </View>
+            )}
           </>
         )}
-        
+
         {/* Conteúdo da aba de projetos */}
         {activeTab === 'projects' && !selectedProject && (
           <View style={styles.projectsSection}>
-            <ProjectList 
+            <ProjectList
               projects={profileData.projects}
               onSelectProject={setSelectedProject}
               theme={theme}
+              isOwnProfile={isOwnProfile}
+              onAddProject={navigateToAddProject}
             />
           </View>
         )}
-        
+
         {/* Visualização detalhada de um projeto */}
         {selectedProject && selectedProjectData && (
           <View style={styles.projectDetailSection}>
@@ -423,7 +466,9 @@ export default function ViewProfileScreen() {
               onShare={shareProject}
               onOpenUrl={openUrl}
               onOpenVideo={openVideo}
+              onEdit={navigateToEditProject}
               theme={theme}
+              isOwnProfile={isOwnProfile}
             />
           </View>
         )}

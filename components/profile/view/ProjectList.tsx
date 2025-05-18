@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import * as Icons from 'phosphor-react-native';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
@@ -16,56 +16,77 @@ interface ProjectListProps {
   projects: Project[];
   onSelectProject: (id: string) => void;
   theme: any;
+  isOwnProfile?: boolean;
+  onAddProject?: () => void;
 }
 
 export const ProjectList: React.FC<ProjectListProps> = ({
   projects,
   onSelectProject,
   theme,
+  isOwnProfile = false,
+  onAddProject,
 }) => {
-  // Função auxiliar para resolver problemas de tipagem com estilos
-  const getCardStyle = (index: number): ViewStyle => {
-    const style: ViewStyle = {
-      ...styles.projectCard,
-      ...(index === 0 ? styles.firstProjectCard : {})
-    };
-    return style;
-  };
-
+  // Se não houver projetos, mostrar uma mensagem diferente baseada em isOwnProfile
   if (projects.length === 0) {
     return (
       <Card style={styles.emptyProjectsCard}>
         <View style={styles.emptyProjectsContent}>
           <Text style={[styles.emptyProjectsTitle, { color: theme.colors.text.primary }]}>
-            Nenhum projeto encontrado
+            {isOwnProfile ? 'Nenhum projeto adicionado' : 'Nenhum projeto encontrado'}
           </Text>
           <Text style={[styles.emptyProjectsText, { color: theme.colors.text.secondary }]}>
-            Este usuário ainda não adicionou projetos ao seu perfil.
+            {isOwnProfile 
+              ? 'Adicione seus projetos para mostrar suas habilidades e experiência.'
+              : 'Este usuário ainda não adicionou projetos ao seu perfil.'}
           </Text>
+          
+          {isOwnProfile && (
+            <TouchableOpacity
+              style={[styles.addProjectButton, { borderColor: theme.colors.primary }]}
+              onPress={onAddProject}
+            >
+              <Text style={[styles.addProjectText, { color: theme.colors.primary }]}>
+                Adicionar projeto
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Card>
     );
   }
 
+  // Renderizar a lista de projetos
   return (
     <View style={styles.projectsList}>
       {projects.map((project, index) => (
-          <Card 
-            key={`project-${project.id}`} 
-            style={getCardStyle(index)}
-            variant="elevated"
-          >
+        <Card 
+          key={`project-${project.id}`} 
+          style={{
+            ...styles.projectCard,
+            ...(index === 0 ? styles.firstProjectCard : {})
+          }}
+          variant="elevated"
+        >
           <TouchableOpacity 
             style={styles.projectCardContent}
             onPress={() => onSelectProject(project.id)}
             activeOpacity={0.8}
           >
             {project.images.length > 0 && (
-              <Image
-                source={{ uri: project.images[0] }}
-                style={styles.projectThumbnail}
-                resizeMode="cover"
-              />
+              <View style={styles.projectImageContainer}>
+                <View style={styles.projectThumbnail}>
+                  {project.images[0] ? (
+                    <Image 
+                      source={{ uri: project.images[0] }}
+                      style={styles.thumbnailImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Icons.Image size={24} color={theme.colors.text.disabled} />
+                  )}
+                </View>
+              </View>
             )}
             
             <View style={styles.projectInfo}>
@@ -83,52 +104,41 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 {project.description}
               </Text>
               
-              <View style={styles.projectCardSkills}>
-                {project.skills.slice(0, 2).map((skill, skillIndex) => (
-                  <Badge
-                    key={`${project.id}-skill-mini-${skillIndex}`}
-                    label={skill}
-                    variant="primary"
-                    size="sm"
-                    style={styles.skillBadge}
-                  />
-                ))}
-                {project.skills.length > 2 && (
-                  <Badge
-                    label={`+${project.skills.length - 2}`}
-                    variant="info"
-                    size="sm"
-                    style={styles.skillBadge}
-                  />
-                )}
+              <View style={styles.projectCardFooter}>
+                <View style={styles.likesContainer}>
+                  <Text style={[styles.likesCount, { color: theme.colors.text.primary }]}>
+                    {project.likes}
+                  </Text>
+                  <Icons.Heart size={14} color={theme.colors.primary} style={styles.likeIcon} />
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.viewProjectButton}
+                  onPress={() => onSelectProject(project.id)}
+                >
+                  <Text style={[styles.viewProjectText, { color: theme.colors.primary }]}>
+                    Ver detalhes
+                  </Text>
+                  <Icons.ArrowRight size={14} color={theme.colors.primary} style={styles.viewIcon} />
+                </TouchableOpacity>
               </View>
-            </View>
-            
-            <View style={styles.projectCardActions}>
-              <View style={styles.likesContainer}>
-                <Text style={[styles.likesCount, { color: theme.colors.text.primary }]}>
-                  {project.likes}
-                </Text>
-                <View 
-                  style={[
-                    styles.likeIcon, 
-                    { backgroundColor: theme.colors.primary }
-                  ]} 
-                />
-              </View>
-              
-              <TouchableOpacity 
-                style={styles.viewProjectButton}
-                onPress={() => onSelectProject(project.id)}
-              >
-                <Text style={[styles.viewProjectText, { color: theme.colors.primary }]}>
-                  Ver projeto
-                </Text>
-              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </Card>
       ))}
+      
+      {/* Botão para adicionar mais projetos (apenas se for o próprio perfil) */}
+      {isOwnProfile && (
+        <TouchableOpacity
+          style={[styles.addMoreProjectButton, { borderColor: theme.colors.primary }]}
+          onPress={onAddProject}
+        >
+          <Icons.Plus size={20} color={theme.colors.primary} style={styles.addIcon} />
+          <Text style={[styles.addMoreProjectText, { color: theme.colors.primary }]}>
+            Adicionar outro projeto
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -143,17 +153,27 @@ const styles = StyleSheet.create({
   },
   firstProjectCard: {
     marginTop: 0,
-  },
+  } as ViewStyle,
   projectCardContent: {
-    padding: 0,
+    padding: 16,
+  },
+  projectImageContainer: {
+    marginBottom: 12,
   },
   projectThumbnail: {
-    width: '100%',
     height: 160,
     backgroundColor: '#f2f2f2',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
   projectInfo: {
-    padding: 16,
+    flex: 1,
   },
   projectCardTitle: {
     fontSize: 18,
@@ -165,21 +185,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     lineHeight: 20,
   },
-  projectCardSkills: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  skillBadge: {
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  projectCardActions: {
+  projectCardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    padding: 12,
+    marginTop: 8,
   },
   likesContainer: {
     flexDirection: 'row',
@@ -191,16 +201,20 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   likeIcon: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    marginRight: 4,
   },
   viewProjectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   viewProjectText: {
     fontWeight: '500',
+    fontSize: 14,
+  },
+  viewIcon: {
+    marginLeft: 4,
   },
   emptyProjectsCard: {
     marginTop: 16,
@@ -218,5 +232,36 @@ const styles = StyleSheet.create({
   emptyProjectsText: {
     fontSize: 14,
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  addProjectButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addProjectText: {
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  addMoreProjectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    marginBottom: 16,
+  },
+  addIcon: {
+    marginRight: 8,
+  },
+  addMoreProjectText: {
+    fontWeight: '500',
+    fontSize: 14,
   },
 });

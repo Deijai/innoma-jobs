@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import * as Icons from 'phosphor-react-native';
 import React from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -25,7 +26,9 @@ interface ProjectDetailProps {
   onShare: (project: Project) => void;
   onOpenUrl: (url?: string) => void;
   onOpenVideo: (url?: string) => void;
+  onEdit?: (id: string) => void;
   theme: any;
+  isOwnProfile?: boolean;
 }
 
 export const ProjectDetail: React.FC<ProjectDetailProps> = ({
@@ -35,7 +38,9 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
   onShare,
   onOpenUrl,
   onOpenVideo,
+  onEdit,
   theme,
+  isOwnProfile = false,
 }) => {
   const screenWidth = Dimensions.get('window').width;
   const imageWidth = screenWidth - 48; // 24px padding on each side
@@ -46,14 +51,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
         style={[styles.backButton, { borderColor: theme.colors.border }]}
         onPress={onBack}
       >
-        <View style={styles.backIcon}>
-          <View 
-            style={[
-              styles.backIconArrow, 
-              { borderColor: theme.colors.text.primary }
-            ]} 
-          />
-        </View>
+        <Icons.CaretLeft size={16} color={theme.colors.text.primary} style={styles.backIcon} />
         <Text style={[styles.backText, { color: theme.colors.text.primary }]}>
           Voltar aos projetos
         </Text>
@@ -153,18 +151,36 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
       </View>
       
       <View style={styles.projectActions}>
-        <Button
-          title={`Match (${project.likes})`}
-          onPress={() => onLike(project.id)}
-          style={styles.matchButton}
-        />
-        
-        <Button
-          title="Compartilhar"
-          variant="outline"
-          onPress={() => onShare(project)}
-          style={styles.shareButton}
-        />
+        {isOwnProfile ? (
+          <>
+            <Button
+              title="Editar"
+              variant="outline"
+              onPress={() => onEdit && onEdit(project.id)}
+              style={styles.actionButton}
+            />
+            <Button
+              title="Compartilhar"
+              variant="outline"
+              onPress={() => onShare(project)}
+              style={styles.actionButton}
+            />
+          </>
+        ) : (
+          <>
+            <Button
+              title={`Match (${project.likes})`}
+              onPress={() => onLike(project.id)}
+              style={styles.actionButton}
+            />
+            <Button
+              title="Compartilhar"
+              variant="outline"
+              onPress={() => onShare(project)}
+              style={styles.actionButton}
+            />
+          </>
+        )}
       </View>
     </View>
   );
@@ -180,21 +196,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingVertical: 8,
     paddingHorizontal: 0,
-    borderRadius: 4,
   },
   backIcon: {
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginRight: 8,
-  },
-  backIconArrow: {
-    width: 8,
-    height: 8,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    transform: [{ rotate: '45deg' }],
   },
   backText: {
     fontSize: 14,
@@ -258,11 +262,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  matchButton: {
+  actionButton: {
     flex: 1,
-    marginRight: 8,
-  },
-  shareButton: {
-    flex: 1,
+    marginHorizontal: 4,
   },
 });

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { IconButton } from '@/components/ui/IconButton';
+import * as Icons from 'phosphor-react-native';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -15,6 +16,8 @@ interface ProfileHeaderProps {
   onShare: () => void;
   onMessage: () => void;
   theme: any;
+  isOwnProfile?: boolean;
+  onEdit?: () => void;
 }
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -26,6 +29,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onShare,
   onMessage,
   theme,
+  isOwnProfile = false,
+  onEdit,
 }) => {
   return (
     <View style={styles.header}>
@@ -37,11 +42,22 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         />
         
         <View style={styles.profileActions}>
+          {isOwnProfile && onEdit && (
+            <IconButton
+              icon={
+                <Icons.Pencil size={18} color={theme.colors.text.primary} />
+              }
+              variant="outline"
+              size="sm"
+              onPress={onEdit}
+              style={styles.actionButton}
+              round
+            />
+          )}
+          
           <IconButton
             icon={
-              <View style={styles.shareIcon}>
-                <View style={[styles.shareIconArrow, { borderColor: theme.colors.text.primary }]} />
-              </View>
+              <Icons.Share size={18} color={theme.colors.text.primary} />
             }
             variant="outline"
             size="sm"
@@ -50,18 +66,18 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             round
           />
           
-          <IconButton
-            icon={
-              <View style={styles.messageIcon}>
-                <View style={[styles.messageIconBubble, { borderColor: theme.colors.text.primary }]} />
-              </View>
-            }
-            variant="outline"
-            size="sm"
-            onPress={onMessage}
-            style={styles.actionButton}
-            round
-          />
+          {!isOwnProfile && (
+            <IconButton
+              icon={
+                <Icons.ChatCircle size={18} color={theme.colors.text.primary} />
+              }
+              variant="outline"
+              size="sm"
+              onPress={onMessage}
+              style={styles.actionButton}
+              round
+            />
+          )}
         </View>
         
         <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>
@@ -73,12 +89,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </Text>
         
         <View style={styles.locationContainer}>
-          <View 
-            style={[
-              styles.locationIcon, 
-              { backgroundColor: theme.colors.text.disabled }
-            ]} 
-          />
+          <Icons.MapPin size={14} color={theme.colors.text.disabled} style={styles.locationIcon} />
           <Text style={[styles.locationText, { color: theme.colors.text.disabled }]}>
             {location}
           </Text>
@@ -93,13 +104,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         )}
       </View>
       
-      <Card variant="outlined" style={styles.actionCard}>
-        <Button
-          title="Enviar mensagem"
-          onPress={onMessage}
-          fullWidth
-        />
-      </Card>
+      {!isOwnProfile && (
+        <Card variant="outlined" style={styles.actionCard}>
+          <Button
+            title="Enviar mensagem"
+            onPress={onMessage}
+            fullWidth
+          />
+        </Card>
+      )}
     </View>
   );
 };
@@ -121,35 +134,6 @@ const styles = StyleSheet.create({
   actionButton: {
     marginHorizontal: 8,
   },
-  shareIcon: {
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareIconArrow: {
-    width: 0,
-    height: 0,
-    borderTopWidth: 8,
-    borderRightWidth: 8,
-    borderLeftWidth: 8,
-    borderTopColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderLeftColor: 'transparent',
-    borderBottomWidth: 8,
-  },
-  messageIcon: {
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  messageIconBubble: {
-    width: 12,
-    height: 12,
-    borderWidth: 2,
-    borderRadius: 6,
-  },
   profileName: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -168,9 +152,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   locationIcon: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
     marginRight: 6,
   },
   locationText: {
