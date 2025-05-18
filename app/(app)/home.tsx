@@ -1,9 +1,8 @@
-// app/(app)/home.tsx
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, query } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -53,40 +52,93 @@ export default function HomeScreen() {
   const loadProfiles = async () => {
     setIsLoading(true);
     try {
-      // Lógica para carregar perfis
-      // Exemplo simplificado, na implementação real seria feito com Firestore
+      console.log("Carregando perfis...");
       
-      // Verificar o tipo de usuário atual para determinar quais perfis mostrar
-      const isRecruiter = userData?.userType === 'recruiter';
-      
-      // Se for recrutador, mostrar perfis de profissionais e vice-versa
-      const profileType = isRecruiter ? 'professional' : 'recruiter';
-      
+      // Pegar todos os perfis sem filtrar por tipo de usuário
+      // Modificação importante: remover o filtro de userType que pode estar causando o problema
       const profilesRef = collection(db, 'profiles');
+      
+      // Criar uma consulta mais simples, apenas com limit
       const q = query(
         profilesRef,
-        where('userType', '==', profileType),
-        orderBy('createdAt', 'desc'),
-        limit(10)
+        limit(20)
       );
       
+      console.log("Executando consulta ao Firestore...");
       const querySnapshot = await getDocs(q);
+      
+      console.log(`Encontrados ${querySnapshot.size} perfis`);
       const loadedProfiles: ProfileData[] = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        loadedProfiles.push({
-          id: doc.id,
-          name: data.name || 'Usuário',
-          title: data.title || 'Título não definido',
-          location: data.location || 'Localização não definida',
-          tags: data.skills || [],
-          photoURL: data.photoURL,
-          available: data.available || false,
-        });
+        console.log(`Processando perfil: ${doc.id}`, data);
+        
+        // Verificar se temos os dados mínimos necessários
+        if (data) {
+          loadedProfiles.push({
+            id: doc.id,
+            name: data.name || 'Usuário',
+            title: data.title || 'Título não definido',
+            location: data.location || 'Localização não definida',
+            tags: data.skills || [],
+            photoURL: data.photoURL,
+            available: data.available || false,
+          });
+        }
       });
       
+      console.log(`Perfis processados: ${loadedProfiles.length}`);
       setProfiles(loadedProfiles);
+      
+      if (loadedProfiles.length === 0) {
+        console.log("Nenhum perfil encontrado, usando dados de demonstração");
+        // Usar dados de demonstração apenas se não encontrarmos nenhum perfil
+        const mockProfiles: ProfileData[] = [
+          {
+            id: '1',
+            name: 'João Silva',
+            title: 'Desenvolvedor Full Stack',
+            location: 'São Paulo, SP',
+            tags: ['React', 'Node.js', 'TypeScript'],
+            available: true,
+          },
+          {
+            id: '2',
+            name: 'Maria Oliveira',
+            title: 'UX/UI Designer',
+            location: 'Rio de Janeiro, RJ',
+            tags: ['Figma', 'Adobe XD', 'UI Design'],
+            available: false,
+          },
+          {
+            id: '3',
+            name: 'Pedro Santos',
+            title: 'Mobile Developer',
+            location: 'Belo Horizonte, MG',
+            tags: ['React Native', 'Flutter', 'Mobile'],
+            available: true,
+          },
+          {
+            id: '4',
+            name: 'Ana Souza',
+            title: 'Product Manager',
+            location: 'Curitiba, PR',
+            tags: ['Agile', 'Scrum', 'Product'],
+            available: true,
+          },
+          {
+            id: '5',
+            name: 'Carlos Mendes',
+            title: 'Data Scientist',
+            location: 'Porto Alegre, RS',
+            tags: ['Python', 'Machine Learning', 'AI'],
+            available: false,
+          },
+        ];
+        
+        setProfiles(mockProfiles);
+      }
     } catch (error) {
       console.error('Erro ao carregar perfis:', error);
       
@@ -165,12 +217,13 @@ export default function HomeScreen() {
 
   // Navegar para detalhes do perfil
   const navigateToProfileDetails = (profileId: string) => {
-    //router.push(`/profile/view/${profileId}`);
+    router.push(`/profile/view/${profileId}`);
   };
 
   // Navegar para mensagens
   const handleSendMessage = (profileId: string) => {
-    //router.push(`/messages/${profileId}`);
+    // Implementação futura
+    console.log(`Enviar mensagem para: ${profileId}`);
   };
 
   // Renderizar item do perfil
