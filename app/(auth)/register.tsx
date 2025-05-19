@@ -1,8 +1,8 @@
-// app/(auth)/register.tsx
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Icons from 'phosphor-react-native';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -31,7 +31,7 @@ interface FormValues {
 }
 
 export default function RegisterScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const { register } = useAuth();
@@ -164,7 +164,7 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -176,11 +176,7 @@ export default function RegisterScreen() {
         >
           <View style={styles.header}>
             <IconButton
-              icon={
-                <View style={styles.backIcon}>
-                  <View style={[styles.backIconLine, { backgroundColor: theme.colors.text.primary }]} />
-                </View>
-              }
+              icon={<Icons.CaretLeft size={24} color={theme.colors.text.primary} />}
               variant="ghost"
               onPress={handleGoBack}
               style={styles.backButton}
@@ -190,7 +186,7 @@ export default function RegisterScreen() {
               Criar Conta
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-              Registre-se para começar a usar o Innoma Jobs
+              Registre-se para começar sua jornada profissional
             </Text>
           </View>
           
@@ -201,6 +197,7 @@ export default function RegisterScreen() {
               value={formValues.name}
               onChangeText={(value) => handleChange('name', value)}
               errorMessage={errors.name}
+              leftIcon={<Icons.User size={20} color={theme.colors.text.secondary} />}
             />
             
             <Input
@@ -211,6 +208,7 @@ export default function RegisterScreen() {
               value={formValues.email}
               onChangeText={(value) => handleChange('email', value)}
               errorMessage={errors.email}
+              leftIcon={<Icons.Envelope size={20} color={theme.colors.text.secondary} />}
             />
             
             <Input
@@ -220,11 +218,14 @@ export default function RegisterScreen() {
               value={formValues.password}
               onChangeText={(value) => handleChange('password', value)}
               errorMessage={errors.password}
+              leftIcon={<Icons.Lock size={20} color={theme.colors.text.secondary} />}
               rightIcon={
                 <TouchableOpacity onPress={toggleShowPassword}>
-                  <Text style={{ color: theme.colors.text.secondary, fontSize: 14 }}>
-                    {showPassword ? 'Ocultar' : 'Mostrar'}
-                  </Text>
+                  {showPassword ? (
+                    <Icons.Eye size={20} color={theme.colors.text.secondary} />
+                  ) : (
+                    <Icons.EyeSlash size={20} color={theme.colors.text.secondary} />
+                  )}
                 </TouchableOpacity>
               }
               onRightIconPress={toggleShowPassword}
@@ -238,11 +239,14 @@ export default function RegisterScreen() {
               value={formValues.confirmPassword}
               onChangeText={(value) => handleChange('confirmPassword', value)}
               errorMessage={errors.confirmPassword}
+              leftIcon={<Icons.Lock size={20} color={theme.colors.text.secondary} />}
               rightIcon={
                 <TouchableOpacity onPress={toggleShowConfirmPassword}>
-                  <Text style={{ color: theme.colors.text.secondary, fontSize: 14 }}>
-                    {showConfirmPassword ? 'Ocultar' : 'Mostrar'}
-                  </Text>
+                  {showConfirmPassword ? (
+                    <Icons.Eye size={20} color={theme.colors.text.secondary} />
+                  ) : (
+                    <Icons.EyeSlash size={20} color={theme.colors.text.secondary} />
+                  )}
                 </TouchableOpacity>
               }
               onRightIconPress={toggleShowConfirmPassword}
@@ -253,15 +257,71 @@ export default function RegisterScreen() {
                 Tipo de perfil
               </Text>
               
-              <ChipGroup
-                chips={[
-                  { id: 'professional', label: 'Profissional' },
-                  { id: 'recruiter', label: 'Recrutador' },
-                ]}
-                selectedChipIds={[formValues.userType]}
-                onChange={handleUserTypeChange}
-                containerStyle={styles.chipGroup}
-              />
+              <View style={styles.userTypeOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.userTypeOption,
+                    formValues.userType === 'professional' && [
+                      styles.userTypeOptionSelected,
+                      { borderColor: theme.colors.primary, backgroundColor: `${theme.colors.primary}15` }
+                    ]
+                  ]}
+                  onPress={() => handleUserTypeChange(['professional'])}
+                >
+                  <Icons.UserCircle 
+                    size={24} 
+                    color={
+                      formValues.userType === 'professional' 
+                        ? theme.colors.primary 
+                        : theme.colors.text.secondary
+                    } 
+                  />
+                  <Text 
+                    style={[
+                      styles.userTypeText,
+                      { 
+                        color: formValues.userType === 'professional' 
+                          ? theme.colors.primary 
+                          : theme.colors.text.primary 
+                      }
+                    ]}
+                  >
+                    Profissional
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.userTypeOption,
+                    formValues.userType === 'recruiter' && [
+                      styles.userTypeOptionSelected,
+                      { borderColor: theme.colors.primary, backgroundColor: `${theme.colors.primary}15` }
+                    ]
+                  ]}
+                  onPress={() => handleUserTypeChange(['recruiter'])}
+                >
+                  <Icons.Briefcase 
+                    size={24} 
+                    color={
+                      formValues.userType === 'recruiter' 
+                        ? theme.colors.primary 
+                        : theme.colors.text.secondary
+                    } 
+                  />
+                  <Text 
+                    style={[
+                      styles.userTypeText,
+                      { 
+                        color: formValues.userType === 'recruiter' 
+                          ? theme.colors.primary 
+                          : theme.colors.text.primary 
+                      }
+                    ]}
+                  >
+                    Recrutador
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
             
             <Button
@@ -275,17 +335,6 @@ export default function RegisterScreen() {
           </View>
           
           <View style={styles.footer}>
-            <Divider label="ou" spacing={24} />
-            
-            <Button
-              title="Registrar com Google"
-              variant="outline"
-              size="lg"
-              onPress={() => {/* Google registration implementation */}}
-              style={styles.socialButton}
-              fullWidth
-            />
-            
             <View style={styles.loginContainer}>
               <Text style={[styles.loginText, { color: theme.colors.text.secondary }]}>
                 Já tem uma conta?
@@ -323,20 +372,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignSelf: 'flex-start',
   },
-  backIcon: {
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backIconLine: {
-    width: 10,
-    height: 10,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    transform: [{ rotate: '45deg' }],
-    position: 'absolute',
-  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -350,24 +385,43 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   userTypeContainer: {
+    marginTop: 8,
     marginBottom: 24,
   },
   userTypeLabel: {
     fontSize: 16,
     fontWeight: '500',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  chipGroup: {
-    marginTop: 8,
+  userTypeOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  userTypeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  userTypeOptionSelected: {
+    borderWidth: 2,
+  },
+  userTypeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
   },
   submitButton: {
     marginTop: 8,
   },
   footer: {
     marginTop: 'auto',
-  },
-  socialButton: {
-    marginBottom: 24,
   },
   loginContainer: {
     flexDirection: 'row',

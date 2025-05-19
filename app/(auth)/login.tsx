@@ -1,10 +1,11 @@
-// app/(auth)/login.tsx
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Icons from 'phosphor-react-native';
 import React, { useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -26,7 +27,7 @@ interface FormValues {
 }
 
 export default function LoginScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const { login } = useAuth();
   const { showToast } = useToast();
@@ -123,7 +124,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -133,12 +134,21 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scrollView}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Logo */}
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-              Entrar
+              Bem-vindo de volta
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-              Faça login para acessar sua conta
+              Faça login para continuar sua jornada profissional
             </Text>
           </View>
           
@@ -151,6 +161,9 @@ export default function LoginScreen() {
               value={formValues.email}
               onChangeText={(value) => handleChange('email', value)}
               errorMessage={errors.email}
+              leftIcon={
+                <Icons.Envelope size={20} color={theme.colors.text.secondary} />
+              }
             />
             
             <Input
@@ -160,11 +173,16 @@ export default function LoginScreen() {
               value={formValues.password}
               onChangeText={(value) => handleChange('password', value)}
               errorMessage={errors.password}
+              leftIcon={
+                <Icons.Lock size={20} color={theme.colors.text.secondary} />
+              }
               rightIcon={
                 <TouchableOpacity onPress={toggleShowPassword}>
-                  <Text style={{ color: theme.colors.text.secondary, fontSize: 14 }}>
-                    {showPassword ? 'Ocultar' : 'Mostrar'}
-                  </Text>
+                  {showPassword ? (
+                    <Icons.Eye size={20} color={theme.colors.text.secondary} />
+                  ) : (
+                    <Icons.EyeSlash size={20} color={theme.colors.text.secondary} />
+                  )}
                 </TouchableOpacity>
               }
               onRightIconPress={toggleShowPassword}
@@ -190,16 +208,39 @@ export default function LoginScreen() {
           </View>
           
           <View style={styles.footer}>
-            <Divider label="ou" spacing={24} />
+            <Divider label="ou continue com" spacing={24} />
             
-            <Button
-              title="Entrar com Google"
-              variant="outline"
-              size="lg"
-              onPress={() => {/* Google login implementation */}}
-              style={styles.socialButton}
-              fullWidth
-            />
+            <View style={styles.socialButtonsRow}>
+              <TouchableOpacity 
+                style={[styles.socialButton, { borderColor: theme.colors.border }]}
+                onPress={() => {/* Google login implementation */}}
+              >
+                <Image 
+                  source={require('../../assets/images/google.png')} 
+                  style={styles.socialIcon} 
+                />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.socialButton, { borderColor: theme.colors.border }]}
+                onPress={() => {/* Apple login implementation */}}
+              >
+                <Icons.AppleLogo 
+                  size={24} 
+                  color={isDark ? theme.colors.text.primary : '#000'} 
+                />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.socialButton, { borderColor: theme.colors.border }]}
+                onPress={() => {/* Facebook login implementation */}}
+              >
+                <Icons.FacebookLogo 
+                  size={24} 
+                  color="#1877F2" 
+                />
+              </TouchableOpacity>
+            </View>
             
             <View style={styles.registerContainer}>
               <Text style={[styles.registerText, { color: theme.colors.text.secondary }]}>
@@ -228,8 +269,16 @@ const styles = StyleSheet.create({
   scrollView: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 20,
     paddingBottom: 24,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  logo: {
+    width: 180,
+    height: 60,
   },
   header: {
     marginBottom: 32,
@@ -261,8 +310,23 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 'auto',
   },
+  socialButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 24,
+  },
   socialButton: {
-    marginBottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 12,
+  },
+  socialIcon: {
+    width: 24,
+    height: 24,
   },
   registerContainer: {
     flexDirection: 'row',

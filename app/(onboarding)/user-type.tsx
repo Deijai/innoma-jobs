@@ -1,9 +1,8 @@
-// app/(onboarding)/user-type.tsx
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 
@@ -86,75 +85,80 @@ const UserTypeCard: React.FC<UserTypeCardProps> = ({
   isSelected,
   onSelect,
   theme,
-}) => (
-  <TouchableOpacity activeOpacity={0.8} onPress={onSelect}>
-    <Card
-      variant={isSelected ? 'elevated' : 'outlined'}
-      style={[
-        styles.card,
-        isSelected && {
-          borderColor: theme.colors.primary,
-          borderWidth: 2,
-        },
-      ]}
-    >
-      <View style={styles.cardContent}>
-        <View
-          style={[
-            styles.iconContainer,
-            {
-              backgroundColor: isSelected 
-                ? `${theme.colors.primary}15` 
-                : theme.colors.card,
-            },
-          ]}
-        >
-          <Image source={iconSource} style={styles.icon} resizeMode="contain" />
-        </View>
-        
-        <View style={styles.cardTextContainer}>
-          <Text
+}) => {
+  // Calcular o estilo do card com base na seleção
+  const cardStyle: ViewStyle = {
+    ...styles.card,
+    ...(isSelected ? {
+      borderColor: theme.colors.primary,
+      borderWidth: 2,
+    } : {})
+  };
+
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={onSelect}>
+      <Card
+        variant={isSelected ? 'elevated' : 'outlined'}
+        style={cardStyle}
+      >
+        <View style={styles.cardContent}>
+          <View
             style={[
-              styles.cardTitle,
-              { color: theme.colors.text.primary },
-              isSelected && { color: theme.colors.primary },
+              styles.iconContainer,
+              {
+                backgroundColor: isSelected 
+                  ? `${theme.colors.primary}15` 
+                  : theme.colors.card,
+              },
             ]}
           >
-            {title}
-          </Text>
+            <Image source={iconSource} style={styles.icon} resizeMode="contain" />
+          </View>
           
-          <Text
+          <View style={styles.cardTextContainer}>
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: theme.colors.text.primary },
+                isSelected && { color: theme.colors.primary },
+              ]}
+            >
+              {title}
+            </Text>
+            
+            <Text
+              style={[
+                styles.cardDescription,
+                { color: theme.colors.text.secondary },
+              ]}
+            >
+              {description}
+            </Text>
+          </View>
+          
+          <View
             style={[
-              styles.cardDescription,
-              { color: theme.colors.text.secondary },
+              styles.radioContainer,
+              {
+                borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                backgroundColor: theme.colors.card,
+              },
             ]}
           >
-            {description}
-          </Text>
+            {isSelected && (
+              <View
+                style={[
+                  styles.radioInner,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+              />
+            )}
+          </View>
         </View>
-        
-        <View
-          style={[
-            styles.radioContainer,
-            {
-              borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-              backgroundColor: theme.colors.card,
-            },
-          ]}
-        >
-          {isSelected && (
-            <View
-              style={[
-                styles.radioInner,
-                { backgroundColor: theme.colors.primary },
-              ]}
-            />
-          )}
-        </View>
-      </View>
-    </Card>
-  </TouchableOpacity>
-);
+      </Card>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {

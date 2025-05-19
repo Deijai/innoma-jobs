@@ -1,10 +1,11 @@
-// app/(auth)/forgot-password.tsx
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Icons from 'phosphor-react-native';
 import React, { useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -103,11 +104,7 @@ export default function ForgotPasswordScreen() {
         >
           <View style={styles.header}>
             <IconButton
-              icon={
-                <View style={styles.backIcon}>
-                  <View style={[styles.backIconLine, { backgroundColor: theme.colors.text.primary }]} />
-                </View>
-              }
+              icon={<Icons.CaretLeft size={24} color={theme.colors.text.primary} />}
               variant="ghost"
               onPress={handleGoBack}
               style={styles.backButton}
@@ -127,7 +124,11 @@ export default function ForgotPasswordScreen() {
           {isResetSent ? (
             <View style={styles.successContainer}>
               <View style={[styles.iconContainer, { backgroundColor: `${theme.colors.success}15` }]}>
-                <View style={[styles.successIcon, { borderColor: theme.colors.success }]} />
+                <Icons.CheckCircle 
+                  size={48} 
+                  color={theme.colors.success} 
+                  weight="fill"
+                />
               </View>
               
               <Text style={[styles.successText, { color: theme.colors.text.primary }]}>
@@ -135,8 +136,24 @@ export default function ForgotPasswordScreen() {
               </Text>
               
               <Text style={[styles.successDescription, { color: theme.colors.text.secondary }]}>
-                Se {email} estiver associado a uma conta, você receberá um link para criar uma nova senha.
+                Se <Text style={{ fontWeight: 'bold' }}>{email}</Text> estiver associado a uma conta, você receberá um link para criar uma nova senha.
               </Text>
+              
+              <View style={styles.emailIllustration}>
+                <View style={[
+                  styles.emailIcon, 
+                  { backgroundColor: isDark ? theme.colors.card : '#F3F4F6' }
+                ]}>
+                  <Icons.EnvelopeSimple size={32} color={theme.colors.primary} />
+                </View>
+                <Icons.ArrowRight size={20} color={theme.colors.text.secondary} style={styles.arrowIcon} />
+                <View style={[
+                  styles.deviceIcon, 
+                  { backgroundColor: isDark ? theme.colors.card : '#F3F4F6' }
+                ]}>
+                  <Icons.DeviceMobile size={32} color={theme.colors.primary} />
+                </View>
+              </View>
               
               <Button
                 title="Voltar para o Login"
@@ -156,7 +173,15 @@ export default function ForgotPasswordScreen() {
                 value={email}
                 onChangeText={handleEmailChange}
                 errorMessage={error}
+                leftIcon={<Icons.Envelope size={20} color={theme.colors.text.secondary} />}
               />
+              
+              <View style={styles.helpContainer}>
+                <Icons.Info size={18} color={theme.colors.info} />
+                <Text style={[styles.helpText, { color: theme.colors.text.secondary }]}>
+                  Enviaremos um link para o e-mail informado para que você possa redefinir sua senha.
+                </Text>
+              </View>
               
               <Button
                 title="Recuperar senha"
@@ -171,6 +196,7 @@ export default function ForgotPasswordScreen() {
                 onPress={handleBackToLogin}
                 style={styles.backToLoginLink}
               >
+                <Icons.CaretLeft size={14} color={theme.colors.primary} />
                 <Text style={[styles.backToLoginText, { color: theme.colors.primary }]}>
                   Voltar para o login
                 </Text>
@@ -202,20 +228,7 @@ const styles = StyleSheet.create({
   backButton: {
     marginBottom: 16,
     alignSelf: 'flex-start',
-  },
-  backIcon: {
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backIconLine: {
-    width: 10,
-    height: 10,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    transform: [{ rotate: '45deg' }],
-    position: 'absolute',
+    padding: 0,
   },
   title: {
     fontSize: 28,
@@ -229,20 +242,36 @@ const styles = StyleSheet.create({
   form: {
     marginTop: 8,
   },
+  helpContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  helpText: {
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
+  },
   submitButton: {
-    marginTop: 24,
+    marginTop: 8,
   },
   backToLoginLink: {
-    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 24,
   },
   backToLoginText: {
     fontSize: 16,
     fontWeight: '500',
+    marginLeft: 4,
   },
   successContainer: {
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 16,
   },
   iconContainer: {
     width: 80,
@@ -251,13 +280,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-  },
-  successIcon: {
-    width: 32,
-    height: 16,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    transform: [{ rotate: '45deg' }],
   },
   successText: {
     fontSize: 20,
@@ -270,6 +292,29 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
     marginBottom: 32,
+  },
+  emailIllustration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  emailIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deviceIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrowIcon: {
+    marginHorizontal: 16,
   },
   backToLoginButton: {
     marginTop: 16,
