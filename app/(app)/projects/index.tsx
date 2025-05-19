@@ -2,19 +2,24 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import * as Icons from 'phosphor-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Image,
   RefreshControl,
   SafeAreaView,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
+import { Divider } from '../../../components/ui/Divider';
+import { LoadingOverlay } from '../../../components/ui/LoadingOverlay';
+import { useToast } from '../../../components/ui/Toast';
 import { db } from '../../../services/firebase';
 
 // Definição da interface para os dados de projeto
@@ -37,9 +42,11 @@ export default function ProjectsScreen() {
   const { theme } = useTheme();
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useToast();
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   
   // Carregar projetos
@@ -51,30 +58,31 @@ export default function ProjectsScreen() {
   const loadProjects = async () => {
     setIsLoading(true);
     try {
-      if (user?.uid) {
-        // Buscar projetos no Firestore
-        const profileRef = collection(db, 'profiles');
-        const q = query(profileRef, where('id', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          const profileData = querySnapshot.docs[0].data();
-          if (profileData.projects && Array.isArray(profileData.projects)) {
-            setProjects(profileData.projects);
-          } else {
-            // Perfil existe mas não tem projetos
-            setProjects([]);
-          }
+      if (!user?.uid) {
+        setProjects([]);
+        return;
+      }
+
+      // Buscar perfil diretamente pelo documento
+      const profileDocRef = doc(db, 'profiles', user.uid);
+      const profileDocSnap = await getDoc(profileDocRef);
+      
+      if (profileDocSnap.exists()) {
+        const profileData = profileDocSnap.data();
+        if (profileData.projects && Array.isArray(profileData.projects)) {
+          setProjects(profileData.projects);
         } else {
-          // Usuário não tem perfil ainda
+          // Perfil existe mas não tem projetos
           setProjects([]);
         }
       } else {
-        // Não há usuário logado
+        // Usuário não tem perfil ainda
         setProjects([]);
       }
     } catch (error) {
       console.error('Erro ao carregar projetos:', error);
+      showToast("Erro ao carregar projetos. Tente novamente.", "error");
+      
       // Para demonstração, vamos usar alguns projetos fictícios
       const mockProjects: Project[] = [
         {
@@ -142,7 +150,7 @@ export default function ProjectsScreen() {
   const confirmRemoveProject = (id: string) => {
     Alert.alert(
       'Remover projeto',
-      'Tem certeza que deseja remover este projeto?',
+      'Tem certeza que deseja remover este projeto? Esta ação não pode ser desfeita.',
       [
         {
           text: 'Cancelar',
@@ -159,37 +167,109 @@ export default function ProjectsScreen() {
   
   // Função para remover um projeto
   const handleRemoveProject = async (id: string) => {
-    // Implementação futura: remover projeto do Firestore
-    Alert.alert('Projeto removido', 'O projeto foi removido com sucesso.');
+    if (!user?.uid) return;
     
-    // Atualizar lista local
-    setProjects(current => current.filter(project => project.id !== id));
+    setIsDeleting(true);
+    
+    try {
+      // Buscar perfil no Firestore
+      const profileRef = doc(db, 'profiles', user.uid);
+      const profileDocSnap = await getDoc(profileRef);
+      
+      if (profileDocSnap.exists()) {
+        const profileData = profileDocSnap.data();
+        const projects = profileData.projects || [];
+        
+        // Filtrar o projeto a ser removido
+        const updatedProjects = projects.filter((project: Project) => project.id !== id);
+        
+        // Atualizar a lista de projetos no Firestore
+        await updateDoc(profileRef, {
+          projects: updatedProjects,
+          updatedAt: new Date().toISOString(),
+        });
+        
+        // Atualizar a lista local
+        setProjects(updatedProjects);
+        showToast('Projeto removido com sucesso!', 'success');
+      }
+    } catch (error) {
+      console.error('Erro ao remover projeto:', error);
+      showToast('Erro ao remover projeto. Tente novamente.', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
   };
   
   // Renderizar item da lista
   const renderProjectItem = ({ item }: { item: Project }) => (
     <Card style={styles.projectCard}>
-      <View style={styles.projectCardHeader}>
-        <Text style={[styles.projectTitle, { color: theme.colors.text.primary }]}>
-          {item.title}
+      {/* Thumbnail do projeto (primeira imagem) */}
+      {item.images && item.images.length > 0 && (
+        <View style={styles.thumbnailContainer}>
+          <Image 
+            source={{ uri: item.images[0] }} 
+            style={styles.thumbnail}
+            resizeMode="cover"
+          />
+        </View>
+      )}
+      
+      <View style={styles.projectCardContent}>
+        <View style={styles.projectCardHeader}>
+          <Text style={[styles.projectTitle, { color: theme.colors.text.primary }]}>
+            {item.title}
+          </Text>
+        </View>
+        
+        <Text 
+          style={[styles.projectDescription, { color: theme.colors.text.secondary }]}
+          numberOfLines={2}
+        >
+          {item.description}
         </Text>
-      </View>
-      
-      <Text 
-        style={[styles.projectDescription, { color: theme.colors.text.secondary }]}
-        numberOfLines={2}
-      >
-        {item.description}
-      </Text>
-      
-      <View style={styles.projectCardFooter}>
-        <View style={styles.projectCardActions}>
+        
+        {/* Skills do projeto */}
+        {item.skills && item.skills.length > 0 && (
+          <View style={styles.skillsContainer}>
+            {item.skills.slice(0, 3).map((skill, index) => (
+              <View 
+                key={`skill-${index}`} 
+                style={[
+                  styles.skillChip, 
+                  { backgroundColor: `${theme.colors.primary}15` }
+                ]}
+              >
+                <Text style={[styles.skillText, { color: theme.colors.primary }]}>
+                  {skill}
+                </Text>
+              </View>
+            ))}
+            {item.skills.length > 3 && (
+              <View 
+                style={[
+                  styles.skillChip, 
+                  { backgroundColor: `${theme.colors.info}15` }
+                ]}
+              >
+                <Text style={[styles.skillText, { color: theme.colors.info }]}>
+                  +{item.skills.length - 3}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+        
+        <Divider style={styles.divider} />
+        
+        <View style={styles.projectCardFooter}>
           <Button
             title="Ver"
             variant="outline"
             size="sm"
             onPress={() => navigateToViewProject(item.id)}
             style={styles.actionButton}
+            leftIcon={<Icons.Eye size={16} color={theme.colors.primary} />}
           />
           
           <Button
@@ -198,6 +278,7 @@ export default function ProjectsScreen() {
             size="sm"
             onPress={() => navigateToEditProject(item.id)}
             style={styles.actionButton}
+            leftIcon={<Icons.PencilSimple size={16} color={theme.colors.primary} />}
           />
           
           <Button
@@ -206,6 +287,7 @@ export default function ProjectsScreen() {
             size="sm"
             onPress={() => confirmRemoveProject(item.id)}
             style={styles.actionButton}
+            leftIcon={<Icons.Trash size={16} color={theme.colors.primary} />}
           />
         </View>
       </View>
@@ -215,6 +297,9 @@ export default function ProjectsScreen() {
   // Renderizar conteúdo vazio
   const renderEmptyContent = () => (
     <View style={styles.emptyContainer}>
+      <View style={[styles.emptyIconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
+        <Icons.Briefcase size={48} color={theme.colors.primary} />
+      </View>
       <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>
         Você ainda não tem projetos
       </Text>
@@ -225,6 +310,7 @@ export default function ProjectsScreen() {
         title="Adicionar projeto"
         onPress={navigateToAddProject}
         style={styles.emptyButton}
+        leftIcon={<Icons.Plus size={20} color="#FFFFFF" />}
       />
     </View>
   );
@@ -233,30 +319,40 @@ export default function ProjectsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar style="auto" />
       
+      {isDeleting && <LoadingOverlay message="Removendo projeto..." />}
+      
       <View style={styles.header}>
         <Button
           title="Novo Projeto"
           onPress={navigateToAddProject}
           fullWidth
+          leftIcon={<Icons.Plus size={20} color="#FFFFFF" />}
         />
       </View>
       
-      <FlatList
-        data={projects}
-        renderItem={renderProjectItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[theme.colors.primary]}
-            tintColor={theme.colors.primary}
-          />
-        }
-        ListEmptyComponent={renderEmptyContent}
-      />
+      {isLoading ? (
+        <LoadingOverlay message="Carregando projetos..." />
+      ) : (
+        <FlatList
+          data={projects}
+          renderItem={renderProjectItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[
+            styles.listContainer,
+            projects.length === 0 && styles.emptyList
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
+          ListEmptyComponent={renderEmptyContent}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -270,10 +366,26 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    flexGrow: 1,
+    paddingTop: 0,
+  },
+  emptyList: {
+    flex: 1,
+    justifyContent: 'center',
   },
   projectCard: {
     marginBottom: 16,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  thumbnailContainer: {
+    width: '100%',
+    height: 150,
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  projectCardContent: {
     padding: 16,
   },
   projectCardHeader: {
@@ -286,14 +398,28 @@ const styles = StyleSheet.create({
   projectDescription: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  skillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  skillChip: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  skillText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  divider: {
+    marginVertical: 12,
   },
   projectCardFooter: {
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    paddingTop: 16,
-  },
-  projectCardActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -306,6 +432,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   emptyTitle: {
     fontSize: 18,

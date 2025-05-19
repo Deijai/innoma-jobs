@@ -362,7 +362,8 @@ export default function EditProfileScreen() {
       }
 
       showToast('Perfil atualizado com sucesso', 'success');
-      router.replace('/profile');
+      //router.replace('/profile'); remover isso aqui
+      router.push(`/profile/view/${profileRef.id}`);
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
       showToast('Erro ao salvar perfil', 'error');

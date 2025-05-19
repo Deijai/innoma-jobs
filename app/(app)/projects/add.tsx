@@ -5,23 +5,26 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import * as Icons from 'phosphor-react-native';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import uuid from 'react-native-uuid';
+import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Divider } from '../../../components/ui/Divider';
 import { Input } from '../../../components/ui/Input';
+import { LoadingOverlay } from '../../../components/ui/LoadingOverlay';
 import { TextArea } from '../../../components/ui/TextArea';
 import { useToast } from '../../../components/ui/Toast';
 import { db, storage } from '../../../services/firebase';
@@ -228,11 +231,23 @@ export default function AddProjectScreen() {
         // Atualizar projetos no perfil existente
         await updateDoc(profileRef, {
           projects: [...projects, newProject],
+          updatedAt: new Date().toISOString(),
         });
       } else {
         // Se o perfil não existir, criar um novo
         await setDoc(profileRef, {
           id: user.uid,
+          name: user.displayName || '',
+          title: '',
+          about: '',
+          location: '',
+          skills: [],
+          education: [],
+          experience: [],
+          languages: [],
+          photoURL: user.photoURL || '',
+          available: false,
+          completionPercentage: 0.1,
           projects: [newProject],
           updatedAt: new Date().toISOString(),
         });
@@ -270,6 +285,9 @@ export default function AddProjectScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar style="auto" />
       
+      {/* Loading Overlay */}
+      {isLoading && <LoadingOverlay message="Salvando projeto..." />}
+      
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
@@ -288,6 +306,7 @@ export default function AddProjectScreen() {
               placeholder="Ex: App de Gestão Financeira"
               value={formData.title}
               onChangeText={(value) => updateFormField('title', value)}
+              leftIcon={<Icons.Notepad size={20} color={theme.colors.text.secondary} />}
             />
             
             <TextArea
@@ -315,6 +334,7 @@ export default function AddProjectScreen() {
                   onChangeText={setSkillInput}
                   returnKeyType="done"
                   onSubmitEditing={handleAddSkill}
+                  leftIcon={<Icons.Code size={20} color={theme.colors.text.secondary} />}
                 />
               </View>
               
@@ -330,25 +350,15 @@ export default function AddProjectScreen() {
             {formData.skills.length > 0 ? (
               <View style={styles.skillsContainer}>
                 {formData.skills.map((skill, index) => (
-                  <View 
-                    key={`skill-${index}`} 
-                    style={[
-                      styles.skillBadge, 
-                      { backgroundColor: `${theme.colors.primary}15` }
-                    ]}
-                  >
-                    <Text style={[styles.skillText, { color: theme.colors.primary }]}>
-                      {skill}
-                    </Text>
-                    <TouchableOpacity 
-                      onPress={() => handleRemoveSkill(skill)}
-                      style={styles.removeSkillButton}
-                    >
-                      <Text style={[styles.removeSkillText, { color: theme.colors.primary }]}>
-                        ×
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  <Badge
+                    key={`skill-${index}`}
+                    label={skill}
+                    variant="primary"
+                    size="md"
+                    style={styles.skillBadge}
+                    removable
+                    onRemove={() => handleRemoveSkill(skill)}
+                  />
                 ))}
               </View>
             ) : (
@@ -376,6 +386,7 @@ export default function AddProjectScreen() {
               isLoading={isUploading}
               style={styles.selectImagesButton}
               fullWidth
+              leftIcon={<Icons.Images size={20} color={theme.colors.primary} />}
             />
             
             {formData.images.length > 0 ? (
@@ -385,12 +396,13 @@ export default function AddProjectScreen() {
                     <Image
                       source={{ uri: imageUrl }}
                       style={styles.imageThumbnail}
+                      resizeMode="cover"
                     />
                     <TouchableOpacity
                       style={[styles.removeImageButton, { backgroundColor: theme.colors.error }]}
                       onPress={() => handleRemoveImage(imageUrl)}
                     >
-                      <Text style={styles.removeImageText}>×</Text>
+                      <Icons.X size={16} color="#FFFFFF" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -414,6 +426,7 @@ export default function AddProjectScreen() {
               placeholder="Ex: https://github.com/usuario/projeto"
               value={formData.repoUrl}
               onChangeText={(value) => updateFormField('repoUrl', value)}
+              leftIcon={<Icons.GithubLogo size={20} color={theme.colors.text.secondary} />}
             />
             
             <Input
@@ -421,6 +434,7 @@ export default function AddProjectScreen() {
               placeholder="Ex: https://meusite.com/demo"
               value={formData.demoUrl}
               onChangeText={(value) => updateFormField('demoUrl', value)}
+              leftIcon={<Icons.Globe size={20} color={theme.colors.text.secondary} />}
             />
             
             <Input
@@ -428,6 +442,7 @@ export default function AddProjectScreen() {
               placeholder="Ex: https://youtube.com/watch?v=abcdefg"
               value={formData.videoUrl}
               onChangeText={(value) => updateFormField('videoUrl', value)}
+              leftIcon={<Icons.YoutubeLogo size={20} color={theme.colors.text.secondary} />}
             />
             
             <Input
@@ -435,6 +450,7 @@ export default function AddProjectScreen() {
               placeholder="Ex: https://github.com/usuario"
               value={formData.githubUrl}
               onChangeText={(value) => updateFormField('githubUrl', value)}
+              leftIcon={<Icons.GithubLogo size={20} color={theme.colors.text.secondary} />}
             />
             
             <Input
@@ -442,6 +458,7 @@ export default function AddProjectScreen() {
               placeholder="Ex: https://linkedin.com/in/usuario"
               value={formData.linkedinUrl}
               onChangeText={(value) => updateFormField('linkedinUrl', value)}
+              leftIcon={<Icons.LinkedinLogo size={20} color={theme.colors.text.secondary} />}
             />
           </View>
           
@@ -451,6 +468,7 @@ export default function AddProjectScreen() {
               onPress={handleSaveProject}
               isLoading={isLoading}
               fullWidth
+              leftIcon={<Icons.FloppyDisk size={20} color="#FFFFFF" />}
             />
             
             <Button
@@ -460,6 +478,7 @@ export default function AddProjectScreen() {
               disabled={isLoading}
               style={styles.cancelButton}
               fullWidth
+              leftIcon={<Icons.X size={20} color={theme.colors.primary} />}
             />
           </View>
         </ScrollView>
@@ -505,28 +524,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   skillBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 16,
     marginRight: 8,
     marginBottom: 8,
-  },
-  skillText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  removeSkillButton: {
-    marginLeft: 6,
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeSkillText: {
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   emptyText: {
     fontSize: 14,
@@ -559,11 +558,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  removeImageText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   buttonContainer: {
     marginTop: 16,

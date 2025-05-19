@@ -40,6 +40,14 @@ function SettingsIcon({ focused, color }: { focused: boolean; color: string }) {
   );
 }
 
+function ProjectsIcon({ focused, color }: { focused: boolean; color: string }) {
+  return (
+    <View style={styles.iconContainer}>
+      <Icons.BracketsAngle size={24} color={color} />
+    </View>
+  );
+}
+
 export default function AppLayout() {
   const { theme } = useTheme();
   const { user, isLoading } = useAuth();
@@ -102,6 +110,14 @@ export default function AppLayout() {
         options={{
           title: 'Ajustes',
           tabBarIcon: ({ focused, color }) => <SettingsIcon focused={focused} color={color} />,
+        }}
+      />
+
+       <Tabs.Screen
+        name="projects"
+        options={{
+          title: 'Projects',
+          tabBarIcon: ({ focused, color }) => <ProjectsIcon focused={focused} color={color} />,
         }}
       />
     </Tabs>

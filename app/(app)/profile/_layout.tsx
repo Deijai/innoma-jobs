@@ -13,7 +13,7 @@ export default function ProfileLayout() {
         contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
-      <Stack.Screen name="index" />
+      {/* <Stack.Screen name="index" /> */}
       <Stack.Screen name="edit" />
       <Stack.Screen 
         name="view/[id]" 
