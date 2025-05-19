@@ -13,14 +13,15 @@ export default function ProfileLayout() {
         contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
-      {/* <Stack.Screen name="index" /> */}
-      <Stack.Screen name="edit" />
+      <Stack.Screen name="index" />
+      {/* <Stack.Screen name="edit" /> */}
       <Stack.Screen 
         name="view/[id]" 
         options={{
           headerShown: true,
           headerTitle: 'Perfil',
           headerTintColor: theme.colors.text.primary,
+          presentation: 'containedModal',
           headerStyle: {
             backgroundColor: theme.colors.background,
           },

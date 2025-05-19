@@ -2,7 +2,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import * as Icons from 'phosphor-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -13,9 +14,12 @@ import {
   StyleSheet,
   Text,
   View,
+  ViewStyle,
 } from 'react-native';
 import { Button } from '../../../../components/ui/Button';
+import { Card } from '../../../../components/ui/Card';
 import { Divider } from '../../../../components/ui/Divider';
+import { LoadingOverlay } from '../../../../components/ui/LoadingOverlay';
 import { SkeletonProfileHeader } from '../../../../components/ui/Skeleton';
 import { useToast } from '../../../../components/ui/Toast';
 import { db } from '../../../../services/firebase';
@@ -29,6 +33,23 @@ import { ProfileInfoSection } from '../../../../components/profile/view/ProfileI
 import { ProfileTabs } from '../../../../components/profile/view/ProfileTabs';
 import { ProjectDetail } from '../../../../components/profile/view/ProjectDetail';
 import { ProjectList } from '../../../../components/profile/view/ProjectList';
+
+// Interface para os dados do projeto
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  repoUrl?: string;
+  demoUrl?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  images: string[];
+  videoUrl?: string;
+  skills: string[];
+  likes: number;
+  likedBy?: string[]; // Array de IDs de usuários que curtiram
+  createdAt: string;
+}
 
 // Interface para os dados do perfil
 interface ProfileData {
@@ -59,26 +80,13 @@ interface ProfileData {
     language: string;
     level: string;
   }[];
-  projects: {
-    id: string;
-    title: string;
-    description: string;
-    repoUrl?: string;
-    demoUrl?: string;
-    githubUrl?: string;
-    linkedinUrl?: string;
-    images: string[];
-    videoUrl?: string;
-    skills: string[];
-    likes: number;
-    createdAt: string;
-  }[];
+  projects: Project[];
   photoURL?: string;
   available: boolean;
 }
 
 export default function ViewProfileScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const profileId = params.id as string;
@@ -86,6 +94,7 @@ export default function ViewProfileScreen() {
   const { user } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isLiking, setIsLiking] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'projects'>('profile');
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
@@ -112,6 +121,13 @@ export default function ViewProfileScreen() {
 
       if (profileDoc.exists()) {
         const data = profileDoc.data();
+        
+        // Garantir que todos os projetos tenham o campo likedBy
+        const enhancedProjects = (data.projects || []).map((project: Project) => ({
+          ...project,
+          likedBy: project.likedBy || [],
+        }));
+        
         setProfileData({
           id: profileDoc.id,
           name: data.name || 'Nome não informado',
@@ -122,118 +138,101 @@ export default function ViewProfileScreen() {
           education: data.education || [],
           experience: data.experience || [],
           languages: data.languages || [],
-          projects: data.projects || [],
+          projects: enhancedProjects,
           photoURL: data.photoURL,
           available: data.available || false,
         });
       } else {
         showToast('Perfil não encontrado', 'error');
-        // Criar perfil fictício para demonstração
-        const mockProfile: ProfileData = createMockProfile(profileId);
-        setProfileData(mockProfile);
+        router.back();
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
       showToast('Erro ao carregar dados do perfil', 'error');
-
-      // Para fins de demonstração, criar perfil fictício
-      const mockProfile: ProfileData = createMockProfile(profileId);
-      setProfileData(mockProfile);
+      router.back();
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Função para criar um perfil fictício para demonstração
-  const createMockProfile = (id: string): ProfileData => {
-    return {
-      id,
-      name: 'João Silva',
-      title: 'Desenvolvedor Full Stack',
-      about: 'Desenvolvedor com 5 anos de experiência em desenvolvimento web e mobile. Especializado em React, React Native, Node.js e TypeScript.',
-      location: 'São Paulo, SP',
-      skills: ['React', 'React Native', 'Node.js', 'TypeScript', 'Firebase', 'MongoDB'],
-      education: [
-        {
-          id: '1',
-          institution: 'Universidade de São Paulo',
-          degree: 'Bacharelado',
-          field: 'Ciência da Computação',
-          startDate: '2015',
-          endDate: '2019',
-        }
-      ],
-      experience: [
-        {
-          id: '1',
-          company: 'Tech Solutions',
-          position: 'Desenvolvedor Full Stack Senior',
-          description: 'Desenvolvimento de aplicações web e mobile utilizando React, React Native e Node.js.',
-          startDate: '2020',
-          endDate: 'Atual',
-        },
-        {
-          id: '2',
-          company: 'Digital Innovations',
-          position: 'Desenvolvedor Frontend',
-          description: 'Desenvolvimento de interfaces de usuário com React e TypeScript.',
-          startDate: '2018',
-          endDate: '2020',
-        }
-      ],
-      languages: [
-        {
-          id: '1',
-          language: 'Português',
-          level: 'Nativo',
-        },
-        {
-          id: '2',
-          language: 'Inglês',
-          level: 'Avançado',
-        },
-        {
-          id: '3',
-          language: 'Espanhol',
-          level: 'Intermediário',
-        }
-      ],
-      projects: [
-        {
-          id: '1',
-          title: 'Innoma Jobs - App de Empregos',
-          description: 'Aplicativo mobile para conectar profissionais e recrutadores. Desenvolvido com React Native, Expo e Firebase.',
-          repoUrl: 'https://github.com/joaosilva/innoma-jobs',
-          demoUrl: 'https://innomajobs.app',
-          githubUrl: 'https://github.com/joaosilva',
-          linkedinUrl: 'https://linkedin.com/in/joaosilva',
-          images: [
-            'https://via.placeholder.com/500x300/4361EE/FFFFFF?text=Tela+Inicial',
-            'https://via.placeholder.com/500x300/4361EE/FFFFFF?text=Perfil',
-            'https://via.placeholder.com/500x300/4361EE/FFFFFF?text=Busca'
-          ],
-          videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-          skills: ['React Native', 'Expo', 'Firebase', 'TypeScript'],
-          likes: 42,
-          createdAt: '2023-10-10T14:48:00.000Z',
-        },
-        {
-          id: '2',
-          title: 'E-commerce Dashboard',
-          description: 'Dashboard administrativo para gestão de e-commerce. Frontend em React com Material UI, backend em Node.js com Express.',
-          repoUrl: 'https://github.com/joaosilva/ecommerce-dashboard',
-          githubUrl: 'https://github.com/joaosilva',
-          images: [
-            'https://via.placeholder.com/500x300/3F37C9/FFFFFF?text=Dashboard',
-            'https://via.placeholder.com/500x300/3F37C9/FFFFFF?text=Relatórios'
-          ],
-          skills: ['React', 'Node.js', 'Express', 'MongoDB'],
-          likes: 27,
-          createdAt: '2023-07-15T10:30:00.000Z',
-        }
-      ],
-      available: true,
-    };
+  // Função para dar like/match em um projeto
+  const likeProject = async (projectId: string) => {
+    if (!user?.uid || !profileData || isLiking) return;
+    
+    setIsLiking(true);
+    
+    try {
+      // Encontra o projeto específico
+      const projectIndex = profileData.projects.findIndex(p => p.id === projectId);
+      
+      if (projectIndex === -1) {
+        showToast('Projeto não encontrado', 'error');
+        return;
+      }
+      
+      const project = profileData.projects[projectIndex];
+      const projectLikedBy = project.likedBy || [];
+      const hasLiked = projectLikedBy.includes(user.uid);
+      
+      // Cria uma cópia dos projetos para atualização
+      const updatedProjects = [...profileData.projects];
+      
+      if (hasLiked) {
+        // Remover like
+        updatedProjects[projectIndex] = {
+          ...updatedProjects[projectIndex],
+          likes: Math.max((updatedProjects[projectIndex].likes || 0) - 1, 0),
+          likedBy: projectLikedBy.filter(id => id !== user.uid)
+        };
+        showToast('Curtida removida com sucesso!', 'info');
+      } else {
+        // Adicionar like
+        updatedProjects[projectIndex] = {
+          ...updatedProjects[projectIndex],
+          likes: (updatedProjects[projectIndex].likes || 0) + 1,
+          likedBy: [...projectLikedBy, user.uid]
+        };
+        showToast('Você deu match neste projeto!', 'success');
+      }
+      
+      // Atualizar no Firestore
+      const profileRef = doc(db, 'profiles', profileId);
+      await updateDoc(profileRef, {
+        projects: updatedProjects,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      // Atualizar o estado local
+      setProfileData(prev => {
+        if (!prev) return null;
+        
+        return {
+          ...prev,
+          projects: updatedProjects
+        };
+      });
+    } catch (error) {
+      console.error('Erro ao dar curtida no projeto:', error);
+      showToast('Erro ao processar sua curtida', 'error');
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
+  // Verificar se o usuário atual curtiu um determinado projeto
+  const isProjectLiked = (projectId: string): boolean => {
+    if (!user?.uid || !profileData) return false;
+    
+    const project = profileData.projects.find(p => p.id === projectId);
+    if (!project) return false;
+    
+    return (project.likedBy || []).includes(user.uid);
+  };
+
+  // Abrir vídeo do projeto
+  const openVideo = (videoUrl?: string) => {
+    if (!videoUrl) return;
+    openUrl(videoUrl);
   };
 
   // Funções para abrir URLs
@@ -249,20 +248,6 @@ export default function ViewProfileScreen() {
     });
   };
 
-  // Função para dar like/match em um projeto
-  const likeProject = (projectId: string) => {
-    Alert.alert('Match!', 'Você deu match neste projeto. Em breve implementaremos esta funcionalidade completamente!');
-    // Implementação futura: atualizar contagem de likes no Firestore
-  };
-
-  // Abrir vídeo do projeto
-  const openVideo = (videoUrl?: string) => {
-    if (!videoUrl) return;
-
-    // Implementação futura: modal de vídeo ou usar Linking para abrir
-    Linking.openURL(videoUrl);
-  };
-
   // Compartilhar perfil
   const shareProfile = async () => {
     try {
@@ -276,7 +261,7 @@ export default function ViewProfileScreen() {
   };
 
   // Compartilhar projeto
-  const shareProject = async (project: ProfileData['projects'][0]) => {
+  const shareProject = async (project: Project) => {
     try {
       const result = await Share.share({
         message: `Confira o projeto "${project.title}" de ${profileData?.name}: ${project.demoUrl || project.repoUrl || 'https://innomajobs.app/project/' + project.id}`,
@@ -303,22 +288,84 @@ export default function ViewProfileScreen() {
     }
   };
 
+  // Navegar para editar projeto
   const navigateToEditProject = (projectId: string) => {
     if (isOwnProfile) {
       router.push(`/projects/edit/${projectId}`);
     }
-  };  // Navegar para adicionar projeto
+  };
+
+  // Navegar para adicionar projeto
   const navigateToAddProject = () => {
     if (isOwnProfile) {
       router.push('/projects/add');
     }
   };
 
+  // Remover projeto
+  const handleRemoveProject = async (projectId: string) => {
+    if (!isOwnProfile || !user?.uid) return;
+    
+    Alert.alert(
+      'Remover projeto',
+      'Tem certeza que deseja remover este projeto? Esta ação não pode ser desfeita.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const profileRef = doc(db, 'profiles', user.uid);
+              const profileDoc = await getDoc(profileRef);
+              
+              if (profileDoc.exists()) {
+                const profileData = profileDoc.data();
+                const projects = profileData.projects || [];
+                
+                // Filtrar o projeto a ser removido
+                const updatedProjects = projects.filter((p: Project) => p.id !== projectId);
+                
+                // Atualizar a lista de projetos no Firestore
+                await updateDoc(profileRef, {
+                  projects: updatedProjects,
+                  updatedAt: new Date().toISOString(),
+                });
+                
+                // Atualizar estado local
+                setProfileData(prev => {
+                  if (!prev) return null;
+                  return {
+                    ...prev,
+                    projects: prev.projects.filter(p => p.id !== projectId)
+                  };
+                });
+                
+                // Se estiver visualizando um projeto, voltar para a lista
+                if (selectedProject === projectId) {
+                  setSelectedProject(null);
+                }
+                
+                showToast('Projeto removido com sucesso', 'success');
+              }
+            } catch (error) {
+              console.error('Erro ao remover projeto:', error);
+              showToast('Erro ao remover projeto', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Se estiver carregando, mostrar skeleton
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <View style={styles.loadingContainer}>
           <SkeletonProfileHeader style={styles.skeletonHeader} />
           <View style={styles.skeletonContent}>
@@ -335,7 +382,7 @@ export default function ViewProfileScreen() {
   if (!profileData) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
             Não foi possível carregar o perfil
@@ -357,7 +404,8 @@ export default function ViewProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
+      {isLiking && <LoadingOverlay message="Processando curtida..." />}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -389,32 +437,57 @@ export default function ViewProfileScreen() {
         {/* Conteúdo da aba de perfil */}
         {activeTab === 'profile' && !selectedProject && (
           <>
-            <ProfileInfoSection
-              about={profileData.about}
-              skills={profileData.skills}
-              theme={theme}
-            />
+            <Card style={styles.sectionCard as ViewStyle}>
+              <View style={styles.sectionContent}>
+                <ProfileInfoSection
+                  about={profileData.about}
+                  skills={profileData.skills}
+                  theme={theme}
+                />
+              </View>
+            </Card>
 
-            <Divider spacing={24} />
+            <Card style={styles.sectionCard as ViewStyle}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+                  Experiência
+                </Text>
+              </View>
+              <View style={styles.sectionContent}>
+                <ExperiencesSection
+                  experiences={profileData.experience}
+                  theme={theme}
+                />
+              </View>
+            </Card>
 
-            <ExperiencesSection
-              experiences={profileData.experience}
-              theme={theme}
-            />
+            <Card style={styles.sectionCard as ViewStyle}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+                  Formação acadêmica
+                </Text>
+              </View>
+              <View style={styles.sectionContent}>
+                <EducationSection
+                  education={profileData.education}
+                  theme={theme}
+                />
+              </View>
+            </Card>
 
-            <Divider spacing={24} />
-
-            <EducationSection
-              education={profileData.education}
-              theme={theme}
-            />
-
-            <Divider spacing={24} />
-
-            <LanguagesSection
-              languages={profileData.languages}
-              theme={theme}
-            />
+            <Card style={styles.sectionCard as ViewStyle}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+                  Idiomas
+                </Text>
+              </View>
+              <View style={styles.sectionContent}>
+                <LanguagesSection
+                  languages={profileData.languages}
+                  theme={theme}
+                />
+              </View>
+            </Card>
 
             {/* Só mostrar botão de mensagem se não for o próprio perfil */}
             {!isOwnProfile && (
@@ -424,6 +497,7 @@ export default function ViewProfileScreen() {
                   onPress={startChat}
                   style={styles.contactButton}
                   fullWidth
+                  leftIcon={<Icons.ChatTeardropText size={20} color="#FFFFFF" />}
                 />
               </View>
             )}
@@ -437,6 +511,7 @@ export default function ViewProfileScreen() {
                   style={styles.contactButton}
                   fullWidth
                   variant="outline"
+                  leftIcon={<Icons.PencilSimple size={20} color={theme.colors.primary} />}
                 />
               </View>
             )}
@@ -452,6 +527,10 @@ export default function ViewProfileScreen() {
               theme={theme}
               isOwnProfile={isOwnProfile}
               onAddProject={navigateToAddProject}
+              onLikeProject={likeProject}
+              isProjectLiked={isProjectLiked}
+              onEditProject={navigateToEditProject}
+              onRemoveProject={handleRemoveProject}
             />
           </View>
         )}
@@ -462,13 +541,15 @@ export default function ViewProfileScreen() {
             <ProjectDetail
               project={selectedProjectData}
               onBack={() => setSelectedProject(null)}
-              onLike={likeProject}
+              onLike={(projectId) => likeProject(projectId)}
               onShare={shareProject}
               onOpenUrl={openUrl}
               onOpenVideo={openVideo}
               onEdit={navigateToEditProject}
+              onRemove={handleRemoveProject}
               theme={theme}
               isOwnProfile={isOwnProfile}
+              isLiked={isProjectLiked(selectedProjectData.id)}
             />
           </View>
         )}
@@ -487,9 +568,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
+  sectionCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  sectionContent: {
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
   contactSection: {
     padding: 24,
-    paddingTop: 0,
+    paddingTop: 8,
   },
   contactButton: {
     marginTop: 16,

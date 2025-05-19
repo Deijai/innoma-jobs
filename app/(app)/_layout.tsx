@@ -19,7 +19,7 @@ function HomeIcon({ focused, color }: { focused: boolean; color: string }) {
 function ProfileIcon({ focused, color }: { focused: boolean; color: string }) {
   return (
     <View style={styles.iconContainer}>
-       <Icons.UserCircle size={24} color={color} />
+      <Icons.UserCircle size={24} color={color} />
     </View>
   );
 }
@@ -27,7 +27,7 @@ function ProfileIcon({ focused, color }: { focused: boolean; color: string }) {
 function MessagesIcon({ focused, color }: { focused: boolean; color: string }) {
   return (
     <View style={styles.iconContainer}>
-       <Icons.ChatCircle size={24} color={color} />
+      <Icons.ChatCircle size={24} color={color} />
     </View>
   );
 }
@@ -92,6 +92,13 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="projects"
+        options={{
+          title: 'Projects',
+          tabBarIcon: ({ focused, color }) => <ProjectsIcon focused={focused} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="messages"
         options={{
           title: 'Mensagens',
@@ -101,7 +108,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Perfil',
+          title: 'Meu Perfil',
           tabBarIcon: ({ focused, color }) => <ProfileIcon focused={focused} color={color} />,
         }}
       />
@@ -110,14 +117,6 @@ export default function AppLayout() {
         options={{
           title: 'Ajustes',
           tabBarIcon: ({ focused, color }) => <SettingsIcon focused={focused} color={color} />,
-        }}
-      />
-
-       <Tabs.Screen
-        name="projects"
-        options={{
-          title: 'Projects',
-          tabBarIcon: ({ focused, color }) => <ProjectsIcon focused={focused} color={color} />,
         }}
       />
     </Tabs>

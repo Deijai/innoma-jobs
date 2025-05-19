@@ -5,13 +5,13 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-    FlatList,
-    RefreshControl,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  RefreshControl,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
@@ -30,7 +30,7 @@ interface Conversation {
 }
 
 export default function MessagesScreen() {
-  const { theme } = useTheme();
+    const { theme, isDark, toggleTheme } = useTheme();
   const router = useRouter();
   const { user, userData } = useAuth();
   const { showToast } = useToast();
@@ -215,7 +215,7 @@ export default function MessagesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+       <StatusBar style={isDark ? "light" : "dark"} />
       
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.text.primary }]}>

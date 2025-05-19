@@ -20,7 +20,7 @@ import { Input } from '../../components/ui/Input';
 import { useToast } from '../../components/ui/Toast';
 
 export default function ForgotPasswordScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const { resetPassword } = useAuth();
   const { showToast } = useToast();
@@ -91,7 +91,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

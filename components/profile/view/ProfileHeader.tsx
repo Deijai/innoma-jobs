@@ -1,7 +1,5 @@
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { IconButton } from '@/components/ui/IconButton';
 import * as Icons from 'phosphor-react-native';
 import React from 'react';
@@ -42,23 +40,19 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         />
         
         <View style={styles.profileActions}>
-          {isOwnProfile && onEdit && (
+          {isOwnProfile && onEdit ? (
             <IconButton
-              icon={
-                <Icons.Pencil size={18} color={theme.colors.text.primary} />
-              }
+              icon={<Icons.PencilSimple size={20} color={theme.colors.text.primary} />}
               variant="outline"
               size="sm"
               onPress={onEdit}
               style={styles.actionButton}
               round
             />
-          )}
+          ) : null}
           
           <IconButton
-            icon={
-              <Icons.Share size={18} color={theme.colors.text.primary} />
-            }
+            icon={<Icons.Share size={20} color={theme.colors.text.primary} />}
             variant="outline"
             size="sm"
             onPress={onShare}
@@ -68,9 +62,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           
           {!isOwnProfile && (
             <IconButton
-              icon={
-                <Icons.ChatCircle size={18} color={theme.colors.text.primary} />
-              }
+              icon={<Icons.ChatCircle size={20} color={theme.colors.text.primary} />}
               variant="outline"
               size="sm"
               onPress={onMessage}
@@ -103,16 +95,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           />
         )}
       </View>
-      
-      {!isOwnProfile && (
-        <Card variant="outlined" style={styles.actionCard}>
-          <Button
-            title="Enviar mensagem"
-            onPress={onMessage}
-            fullWidth
-          />
-        </Card>
-      )}
     </View>
   );
 };
@@ -123,7 +105,7 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   profileActions: {
     flexDirection: 'row',
@@ -159,8 +141,5 @@ const styles = StyleSheet.create({
   },
   availableBadge: {
     alignSelf: 'center',
-  },
-  actionCard: {
-    padding: 16,
   },
 });

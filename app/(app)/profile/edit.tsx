@@ -3,14 +3,18 @@ import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import * as Icons from 'phosphor-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import uuid from 'react-native-uuid';
@@ -24,6 +28,7 @@ import { SkillsManager } from '../../../components/profile/SkillsManager';
 import { Button } from '../../../components/ui/Button';
 import { Divider } from '../../../components/ui/Divider';
 import { LoadingOverlay } from '../../../components/ui/LoadingOverlay';
+import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { useToast } from '../../../components/ui/Toast';
 import { db } from '../../../services/firebase';
 
@@ -68,7 +73,7 @@ interface ProfileData {
 }
 
 export default function EditProfileScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const { user, userData } = useAuth();
   const { showToast } = useToast();
@@ -81,6 +86,9 @@ export default function EditProfileScreen() {
     education: false,
     languages: false,
   });
+
+  // Animação para o feedback de progresso
+  const progressAnimation = React.useRef(new Animated.Value(0)).current;
 
   // Estado para os dados do perfil
   const [profileData, setProfileData] = useState<ProfileData>({
@@ -117,10 +125,18 @@ export default function EditProfileScreen() {
       const profileDoc = await getDoc(profileRef);
 
       if (profileDoc.exists()) {
-        setProfileData(profileDoc.data() as ProfileData);
+        const data = profileDoc.data() as ProfileData;
+        setProfileData(data);
+        
+        // Animar a barra de progresso
+        Animated.timing(progressAnimation, {
+          toValue: data.completionPercentage || 0,
+          duration: 1000,
+          useNativeDriver: false,
+        }).start();
       } else {
         // Criar perfil com dados iniciais
-        setProfileData({
+        const initialData = {
           name: userData?.displayName || '',
           title: '',
           about: '',
@@ -132,7 +148,15 @@ export default function EditProfileScreen() {
           photoURL: userData?.photoURL || '',
           available: false,
           completionPercentage: 0.1,
-        });
+        };
+        setProfileData(initialData);
+        
+        // Animar a barra de progresso
+        Animated.timing(progressAnimation, {
+          toValue: 0.1,
+          duration: 1000,
+          useNativeDriver: false,
+        }).start();
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -362,8 +386,7 @@ export default function EditProfileScreen() {
       }
 
       showToast('Perfil atualizado com sucesso', 'success');
-      //router.replace('/profile'); remover isso aqui
-      router.push(`/profile/view/${profileRef.id}`);
+      router.push(`/(app)/profile`);
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
       showToast('Erro ao salvar perfil', 'error');
@@ -380,13 +403,35 @@ export default function EditProfileScreen() {
     );
   }
 
+  // Obter a cor de preenchimento baseada na porcentagem
+  const getCompletionColor = (percentage: number) => {
+    if (percentage < 0.3) return theme.colors.error;
+    if (percentage < 0.7) return theme.colors.warning;
+    return theme.colors.success;
+  };
+
+  const completionColor = getCompletionColor(profileData.completionPercentage);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Icons.CaretLeft size={24} color={theme.colors.text.primary} />
+            <Text style={[styles.backText, { color: theme.colors.text.primary }]}>Voltar</Text>
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>
+            Editar Perfil
+          </Text>
+        </View>
+        
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -399,7 +444,30 @@ export default function EditProfileScreen() {
               onPhotoUpdated={handlePhotoUpdated}
               onError={(message) => showToast(message, 'error')}
               theme={theme}
+              icon={<Icons.Camera size={16} color={theme.colors.primary} />}
             />
+            
+            <View style={styles.progressContainer}>
+              <View style={styles.progressHeader}>
+                <Text style={[styles.progressTitle, { color: theme.colors.text.primary }]}>
+                  Progresso do perfil
+                </Text>
+                <Text style={[styles.progressPercentage, { color: completionColor }]}>
+                  {Math.round(profileData.completionPercentage * 100)}%
+                </Text>
+              </View>
+              
+              <ProgressBar
+                progress={profileData.completionPercentage}
+                progressColor={completionColor}
+                height={8}
+                backgroundColor={`${theme.colors.border}50`}
+              />
+              
+              <Text style={[styles.progressHint, { color: theme.colors.text.secondary }]}>
+                Complete seu perfil para aumentar suas chances de conexão
+              </Text>
+            </View>
           </View>
 
           <Divider spacing={16} />
@@ -502,6 +570,7 @@ export default function EditProfileScreen() {
               title="Salvar Perfil"
               onPress={saveProfile}
               isLoading={isSaving}
+              leftIcon={<Icons.CheckCircle size={20} color="#FFFFFF" />}
               fullWidth
             />
             <Button
@@ -510,6 +579,7 @@ export default function EditProfileScreen() {
               onPress={() => router.back()}
               disabled={isSaving}
               style={styles.cancelButton}
+              leftIcon={<Icons.X size={20} color={theme.colors.primary} />}
               fullWidth
             />
           </View>
@@ -526,16 +596,70 @@ const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backText: {
+    fontSize: 16,
+    marginLeft: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'center',
+    marginRight: 30, // Para balancear com o botão de voltar
+  },
   scrollContent: {
     paddingBottom: 40,
   },
   photoSection: {
     alignItems: 'center',
     paddingVertical: 24,
+    paddingHorizontal: 16,
+  },
+  progressContainer: {
+    width: '100%',
+    marginTop: 20,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    padding: 16,
+    borderRadius: 12,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  progressPercentage: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  progressHint: {
+    marginTop: 8,
+    fontSize: 13,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   buttonContainer: {
     padding: 24,
     gap: 16,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   cancelButton: {
     marginTop: 8,

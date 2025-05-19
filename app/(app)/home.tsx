@@ -3,8 +3,10 @@ import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { collection, getDocs, limit, query } from 'firebase/firestore';
+import * as Icons from 'phosphor-react-native';
 import React, { useEffect, useState } from 'react';
 import {
+  Animated,
   FlatList,
   RefreshControl,
   SafeAreaView,
@@ -20,6 +22,7 @@ import { Card } from '../../components/ui/Card';
 import { IconButton } from '../../components/ui/IconButton';
 import { Input } from '../../components/ui/Input';
 import { SkeletonCard } from '../../components/ui/Skeleton';
+import { useToast } from '../../components/ui/Toast';
 import { db } from '../../services/firebase';
 
 // Tipos de dados
@@ -31,51 +34,63 @@ interface ProfileData {
   tags: string[];
   photoURL?: string;
   available: boolean;
+  userType?: 'professional' | 'recruiter';
 }
 
 export default function HomeScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const { user, userData } = useAuth();
+  const { showToast } = useToast();
   
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [profiles, setProfiles] = useState<ProfileData[]>([]);
   
+  // Animação para o loading dos cards
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  
   // Carregar perfis iniciais
   useEffect(() => {
     loadProfiles();
   }, []);
 
+  // Animação quando os perfis forem carregados
+  useEffect(() => {
+    if (!isLoading && profiles.length > 0) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isLoading, profiles]);
+
   // Função para carregar perfis
   const loadProfiles = async () => {
     setIsLoading(true);
+    fadeAnim.setValue(0);
+    
     try {
-      console.log("Carregando perfis...");
-      
-      // Pegar todos os perfis sem filtrar por tipo de usuário
-      // Modificação importante: remover o filtro de userType que pode estar causando o problema
+      // Pegar todos os perfis
       const profilesRef = collection(db, 'profiles');
       
-      // Criar uma consulta mais simples, apenas com limit
+      // Criar uma consulta com limite
       const q = query(
         profilesRef,
         limit(20)
       );
       
-      console.log("Executando consulta ao Firestore...");
       const querySnapshot = await getDocs(q);
-      
-      console.log(`Encontrados ${querySnapshot.size} perfis`);
       const loadedProfiles: ProfileData[] = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        console.log(`Processando perfil: ${doc.id}`, data);
         
         // Verificar se temos os dados mínimos necessários
-        if (data) {
+        // E se NÃO é o usuário atual
+        if (data && doc.id !== user?.uid) {
           loadedProfiles.push({
             id: doc.id,
             name: data.name || 'Usuário',
@@ -84,110 +99,24 @@ export default function HomeScreen() {
             tags: data.skills || [],
             photoURL: data.photoURL,
             available: data.available || false,
+            userType: data.userType
           });
         }
       });
       
-      console.log(`Perfis processados: ${loadedProfiles.length}`);
       setProfiles(loadedProfiles);
-      
+      // Se nenhum perfil foi encontrado, apenas mantemos a lista vazia
       if (loadedProfiles.length === 0) {
-        console.log("Nenhum perfil encontrado, usando dados de demonstração");
-        // Usar dados de demonstração apenas se não encontrarmos nenhum perfil
-        const mockProfiles: ProfileData[] = [
-          {
-            id: '1',
-            name: 'João Silva',
-            title: 'Desenvolvedor Full Stack',
-            location: 'São Paulo, SP',
-            tags: ['React', 'Node.js', 'TypeScript'],
-            available: true,
-          },
-          {
-            id: '2',
-            name: 'Maria Oliveira',
-            title: 'UX/UI Designer',
-            location: 'Rio de Janeiro, RJ',
-            tags: ['Figma', 'Adobe XD', 'UI Design'],
-            available: false,
-          },
-          {
-            id: '3',
-            name: 'Pedro Santos',
-            title: 'Mobile Developer',
-            location: 'Belo Horizonte, MG',
-            tags: ['React Native', 'Flutter', 'Mobile'],
-            available: true,
-          },
-          {
-            id: '4',
-            name: 'Ana Souza',
-            title: 'Product Manager',
-            location: 'Curitiba, PR',
-            tags: ['Agile', 'Scrum', 'Product'],
-            available: true,
-          },
-          {
-            id: '5',
-            name: 'Carlos Mendes',
-            title: 'Data Scientist',
-            location: 'Porto Alegre, RS',
-            tags: ['Python', 'Machine Learning', 'AI'],
-            available: false,
-          },
-        ];
-        
-        setProfiles(mockProfiles);
+        // No ambiente de produção, não precisamos usar mocks
+        // Apenas mostramos o estado de "nenhum resultado"
+        setProfiles([]);
       }
     } catch (error) {
       console.error('Erro ao carregar perfis:', error);
+      showToast('Ocorreu um erro ao carregar os perfis', 'error');
       
-      // Para fins de demonstração, vamos adicionar alguns perfis fictícios
-      // Em produção, isso seria removido
-      const mockProfiles: ProfileData[] = [
-        {
-          id: '1',
-          name: 'João Silva',
-          title: 'Desenvolvedor Full Stack',
-          location: 'São Paulo, SP',
-          tags: ['React', 'Node.js', 'TypeScript'],
-          available: true,
-        },
-        {
-          id: '2',
-          name: 'Maria Oliveira',
-          title: 'UX/UI Designer',
-          location: 'Rio de Janeiro, RJ',
-          tags: ['Figma', 'Adobe XD', 'UI Design'],
-          available: false,
-        },
-        {
-          id: '3',
-          name: 'Pedro Santos',
-          title: 'Mobile Developer',
-          location: 'Belo Horizonte, MG',
-          tags: ['React Native', 'Flutter', 'Mobile'],
-          available: true,
-        },
-        {
-          id: '4',
-          name: 'Ana Souza',
-          title: 'Product Manager',
-          location: 'Curitiba, PR',
-          tags: ['Agile', 'Scrum', 'Product'],
-          available: true,
-        },
-        {
-          id: '5',
-          name: 'Carlos Mendes',
-          title: 'Data Scientist',
-          location: 'Porto Alegre, RS',
-          tags: ['Python', 'Machine Learning', 'AI'],
-          available: false,
-        },
-      ];
-      
-      setProfiles(mockProfiles);
+      // Em caso de erro, mantemos a lista vazia
+      setProfiles([]);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -215,6 +144,21 @@ export default function HomeScreen() {
     });
   };
 
+  // Filtrar por tipo de usuário oposto ao atual
+  const getProfilesByUserType = (profiles: ProfileData[]) => {
+    // Se não temos informação do tipo de usuário, mostrar todos
+    if (!userData?.userType) return profiles;
+    
+    // Mostrar perfis do tipo oposto (recrutadores veem profissionais e vice-versa)
+    const oppositeType = userData.userType === 'professional' ? 'recruiter' : 'professional';
+    
+    // Se temos muitos perfis sem userType definido, não filtrar por enquanto
+    const profilesWithType = profiles.filter(p => p.userType);
+    if (profilesWithType.length < profiles.length * 0.5) return profiles;
+    
+    return profiles.filter(profile => profile.userType === oppositeType);
+  };
+
   // Navegar para detalhes do perfil
   const navigateToProfileDetails = (profileId: string) => {
     router.push(`/profile/view/${profileId}`);
@@ -223,103 +167,115 @@ export default function HomeScreen() {
   // Navegar para mensagens
   const handleSendMessage = (profileId: string) => {
     // Implementação futura
-    console.log(`Enviar mensagem para: ${profileId}`);
+    showToast('Funcionalidade de mensagens será implementada em breve', 'info');
   };
 
   // Renderizar item do perfil
-  const renderProfileItem = ({ item }: { item: ProfileData }) => (
-    <Card style={styles.profileCard} variant="elevated">
-      <TouchableOpacity 
-        activeOpacity={0.8} 
-        onPress={() => navigateToProfileDetails(item.id)}
-        style={styles.profileCardContent}
-      >
-        <View style={styles.profileCardHeader}>
-          <Avatar 
-            name={item.name} 
-            size="md" 
-            source={item.photoURL ? { uri: item.photoURL } : undefined} 
-          />
-          
-          <View style={styles.profileInfo}>
-            <Text 
-              style={[styles.profileName, { color: theme.colors.text.primary }]}
-              numberOfLines={1}
-            >
-              {item.name}
-            </Text>
-            
-            <Text 
-              style={[styles.profileTitle, { color: theme.colors.text.secondary }]}
-              numberOfLines={1}
-            >
-              {item.title}
-            </Text>
-            
-            <View style={styles.profileLocation}>
-              <View 
-                style={[
-                  styles.locationIcon, 
-                  { backgroundColor: theme.colors.text.disabled }
-                ]} 
-              />
-              <Text 
-                style={[styles.locationText, { color: theme.colors.text.disabled }]}
-                numberOfLines={1}
-              >
-                {item.location}
-              </Text>
-            </View>
-          </View>
-          
-          {item.available && (
-            <Badge
-              label="Disponível"
-              variant="success"
-              size="sm"
-              style={styles.availableBadge}
-            />
-          )}
-        </View>
-        
-        <View style={styles.tagsContainer}>
-          {item.tags.slice(0, 3).map((tag, index) => (
-            <Badge
-              key={`${item.id}-${tag}-${index}`}
-              label={tag}
-              variant="primary"
-              size="sm"
-              style={styles.tagBadge}
-            />
-          ))}
-          {item.tags.length > 3 && (
-            <Badge
-              label={`+${item.tags.length - 3}`}
-              variant="info"
-              size="sm"
-              style={styles.tagBadge}
-            />
-          )}
-        </View>
-        
-        <View style={styles.actionsContainer}>
-          <Button
-            title="Ver perfil"
-            variant="outline"
-            size="sm"
+  const renderProfileItem = ({ item, index }: { item: ProfileData, index: number }) => {
+    // Calcular o atraso de animação com base no índice
+    const delay = index * 100;
+    
+    return (
+      <Animated.View style={{
+        opacity: fadeAnim,
+        transform: [{
+          translateY: fadeAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [50, 0]
+          })
+        }]
+      }}>
+        <Card style={styles.profileCard} variant="elevated">
+          <TouchableOpacity 
+            activeOpacity={0.8} 
             onPress={() => navigateToProfileDetails(item.id)}
-            style={styles.viewProfileButton}
-          />
-          
-          <Button
-            title="Mensagem"
-            size="sm"
-            onPress={() => handleSendMessage(item.id)}
-          />
-        </View>
-      </TouchableOpacity>
-    </Card>
-  );
+            style={styles.profileCardContent}
+          >
+            <View style={styles.profileCardHeader}>
+              <Avatar 
+                name={item.name} 
+                size="md" 
+                source={item.photoURL ? { uri: item.photoURL } : undefined} 
+              />
+              
+              <View style={styles.profileInfo}>
+                <Text 
+                  style={[styles.profileName, { color: theme.colors.text.primary }]}
+                  numberOfLines={1}
+                >
+                  {item.name}
+                </Text>
+                
+                <Text 
+                  style={[styles.profileTitle, { color: theme.colors.text.secondary }]}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </Text>
+                
+                <View style={styles.profileLocation}>
+                  <Icons.MapPin size={12} color={theme.colors.text.disabled} style={{ marginRight: 4 }} />
+                  <Text 
+                    style={[styles.locationText, { color: theme.colors.text.disabled }]}
+                    numberOfLines={1}
+                  >
+                    {item.location}
+                  </Text>
+                </View>
+              </View>
+              
+              {item.available && (
+                <Badge
+                  label="Disponível"
+                  variant="success"
+                  size="sm"
+                  style={styles.availableBadge}
+                />
+              )}
+            </View>
+            
+            <View style={styles.tagsContainer}>
+              {item.tags.slice(0, 3).map((tag, index) => (
+                <Badge
+                  key={`${item.id}-${tag}-${index}`}
+                  label={tag}
+                  variant="primary"
+                  size="sm"
+                  style={styles.tagBadge}
+                />
+              ))}
+              {item.tags.length > 3 && (
+                <Badge
+                  label={`+${item.tags.length - 3}`}
+                  variant="info"
+                  size="sm"
+                  style={styles.tagBadge}
+                />
+              )}
+            </View>
+            
+            <View style={styles.actionsContainer}>
+              <Button
+                title="Ver perfil"
+                variant="outline"
+                size="sm"
+                leftIcon={<Icons.User size={16} color={theme.colors.primary} />}
+                onPress={() => navigateToProfileDetails(item.id)}
+                style={styles.viewProfileButton}
+              />
+              
+              <Button
+                title="Mensagem"
+                size="sm"
+                leftIcon={<Icons.ChatCircle size={16} color="#FFFFFF" />}
+                onPress={() => handleSendMessage(item.id)}
+              />
+            </View>
+          </TouchableOpacity>
+        </Card>
+      </Animated.View>
+    );
+  };
 
   // Renderizar componente de carregamento
   const renderLoading = () => (
@@ -339,12 +295,7 @@ export default function HomeScreen() {
           { backgroundColor: `${theme.colors.primary}15` }
         ]}
       >
-        <View 
-          style={[
-            styles.emptyIconInner, 
-            { backgroundColor: theme.colors.primary }
-          ]} 
-        />
+        <Icons.Users size={32} color={theme.colors.primary} />
       </View>
       
       <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>
@@ -361,56 +312,80 @@ export default function HomeScreen() {
       <Button
         title="Atualizar"
         variant="outline"
+        leftIcon={<Icons.ArrowClockwise size={16} color={theme.colors.primary} />}
         onPress={handleRefresh}
         style={styles.refreshButton}
       />
     </View>
   );
 
-  const filteredProfiles = getFilteredProfiles();
+  // Filtrar perfis pelo texto de busca
+  let filteredProfiles = getFilteredProfiles();
+  
+  // Filtrar por tipo de usuário oposto
+  filteredProfiles = getProfilesByUserType(filteredProfiles);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.colors.card }]}>
         <View style={styles.headerTop}>
-          <Text style={[styles.greeting, { color: theme.colors.text.primary }]}>
-            Olá, {userData?.displayName || user?.email?.split('@')[0] || 'Usuário'}
-          </Text>
+          <View>
+            <Text style={[styles.greeting, { color: theme.colors.text.primary }]}>
+              Olá, {userData?.displayName || user?.email?.split('@')[0] || 'Usuário'}
+            </Text>
+            <Text style={[styles.subGreeting, { color: theme.colors.text.secondary }]}>
+              {userData?.userType === 'recruiter' 
+                ? 'Encontre profissionais para sua empresa'
+                : 'Conecte-se com recrutadores e oportunidades'}
+            </Text>
+          </View>
           
           <IconButton
-            icon={
-              <View style={styles.notificationIcon}>
-                <View style={[styles.notificationIconInner, { borderColor: theme.colors.text.primary }]} />
-              </View>
-            }
+            icon={<Icons.Bell size={24} color={theme.colors.text.primary} />}
             variant="ghost"
-            size="sm"
+            size="md"
+            onPress={() => showToast('Notificações serão implementadas em breve', 'info')}
+            style={styles.notificationButton}
           />
         </View>
         
-        <Input
-          placeholder={userData?.userType === 'recruiter' 
-            ? "Buscar profissionais..." 
-            : "Buscar recrutadores..."}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          leftIcon={
-            <View style={styles.searchIcon}>
-              <View style={[styles.searchIconCircle, { borderColor: theme.colors.text.secondary }]} />
-              <View style={[styles.searchIconLine, { backgroundColor: theme.colors.text.secondary }]} />
-            </View>
-          }
-          containerStyle={styles.searchContainer}
-        />
+        <View style={styles.searchInputContainer}>
+          <Input
+            placeholder={userData?.userType === 'recruiter' 
+              ? "Buscar profissionais por nome, cargo ou habilidade..." 
+              : "Buscar recrutadores por nome, cargo ou empresa..."}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            leftIcon={<Icons.MagnifyingGlass size={20} color={theme.colors.text.secondary} />}
+            containerStyle={styles.searchContainer}
+          />
+        </View>
+      </View>
+      
+      <View style={styles.contentHeading}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          {userData?.userType === 'recruiter' 
+            ? 'Profissionais Disponíveis'
+            : 'Recrutadores Ativos'}
+        </Text>
+        
+        {!isLoading && (
+          <Text style={[styles.resultCount, { color: theme.colors.text.secondary }]}>
+            {filteredProfiles.length} {filteredProfiles.length === 1 ? 'resultado' : 'resultados'}
+          </Text>
+        )}
       </View>
       
       <FlatList
         data={filteredProfiles}
         renderItem={renderProfileItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[
+          styles.listContainer,
+          filteredProfiles.length === 0 && styles.emptyList
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -431,62 +406,65 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
   greeting: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
+    marginBottom: 4,
   },
-  notificationIcon: {
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  subGreeting: {
+    fontSize: 14,
   },
-  notificationIconInner: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
+  notificationButton: {
+    marginTop: -4,
+  },
+  searchInputContainer: {
+    marginBottom: 8,
   },
   searchContainer: {
     marginBottom: 0,
   },
-  searchIcon: {
-    width: 20,
-    height: 20,
-    position: 'relative',
+  contentHeading: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  searchIconCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    position: 'absolute',
-    top: 0,
-    left: 0,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
   },
-  searchIconLine: {
-    width: 6,
-    height: 2,
-    position: 'absolute',
-    bottom: 4,
-    right: 2,
-    transform: [{ rotate: '45deg' }],
+  resultCount: {
+    fontSize: 14,
   },
   listContainer: {
     padding: 16,
-    paddingTop: 8,
+    paddingTop: 0,
+  },
+  emptyList: {
+    flex: 1,
   },
   profileCard: {
     marginBottom: 16,
+    borderRadius: 12,
   },
   profileCardContent: {
     padding: 16,
@@ -512,12 +490,6 @@ const styles = StyleSheet.create({
   profileLocation: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  locationIcon: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
   },
   locationText: {
     fontSize: 12,
@@ -549,9 +521,11 @@ const styles = StyleSheet.create({
   skeletonCard: {
     marginBottom: 16,
     height: 150,
+    borderRadius: 12,
   },
   emptyContainer: {
-    marginTop: 32,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
@@ -562,11 +536,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-  },
-  emptyIconInner: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
   },
   emptyTitle: {
     fontSize: 18,

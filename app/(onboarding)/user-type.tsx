@@ -10,7 +10,7 @@ import { Card } from '../../components/ui/Card';
 type UserType = 'professional' | 'recruiter' | null;
 
 export default function UserTypeScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const [selectedType, setSelectedType] = useState<UserType>(null);
 
@@ -22,7 +22,7 @@ export default function UserTypeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.text.primary }]}>

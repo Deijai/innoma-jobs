@@ -2,27 +2,32 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import * as Icons from 'phosphor-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Linking,
-    SafeAreaView,
-    ScrollView,
-    Share,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { Button } from '../../../../components/ui/Button';
+import { Card } from '../../../../components/ui/Card';
 import { LoadingOverlay } from '../../../../components/ui/LoadingOverlay';
 import { useToast } from '../../../../components/ui/Toast';
 import { db } from '../../../../services/firebase';
 
 // Componentes personalizados
-import ProjectImageCarousel from '@/components/projects/ProjectImageCarousel';
 import ProjectSkillsList from '@/components/projects/ProjectSkillsList';
-import ProjectActions from '../../../../components/projects/ProjectActions';
 import ProjectLinks from '../../../../components/projects/ProjectLinks';
 
 // Interface para os dados de projeto
@@ -38,11 +43,13 @@ interface Project {
   videoUrl?: string;
   skills: string[];
   likes: number;
+  likedBy?: string[]; // Array de IDs de usuários que curtiram
   createdAt: string;
+  authorId?: string; // ID do criador do projeto
 }
 
 export default function ViewProjectScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const projectId = params.id as string;
@@ -50,8 +57,17 @@ export default function ViewProjectScreen() {
   const { showToast } = useToast();
   
   const [isLoading, setIsLoading] = useState(true);
+  const [isLiking, setIsLiking] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [isLiked, setIsLiked] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  
+  // Estado para o visualizador de imagens em tela cheia
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
   
   // Carregar dados do projeto
   useEffect(() => {
@@ -81,8 +97,22 @@ export default function ViewProjectScreen() {
             const foundProject = profileData.projects.find(p => p.id === projectId);
             
             if (foundProject) {
-              setProject(foundProject);
+              const enhancedProject = {
+                ...foundProject,
+                likedBy: foundProject.likedBy || [],
+                authorId: user.uid
+              };
+              
+              setProject(enhancedProject);
               setIsOwner(true);
+              setProfileId(user.uid);
+              
+              // Verificar se o usuário já curtiu o projeto
+              setIsLiked(
+                enhancedProject.likedBy && 
+                enhancedProject.likedBy.includes(user.uid)
+              );
+              
               setIsLoading(false);
               return;
             }
@@ -95,6 +125,7 @@ export default function ViewProjectScreen() {
       const profilesSnapshot = await getDocs(profilesRef);
       
       let foundProject = null;
+      let projectOwnerId = null;
       
       for (const profileDoc of profilesSnapshot.docs) {
         const profileData = profileDoc.data();
@@ -103,7 +134,12 @@ export default function ViewProjectScreen() {
           const projectMatch = profileData.projects.find(p => p.id === projectId);
           
           if (projectMatch) {
-            foundProject = projectMatch;
+            foundProject = {
+              ...projectMatch,
+              likedBy: projectMatch.likedBy || [],
+              authorId: profileDoc.id
+            };
+            projectOwnerId = profileDoc.id;
             break;
           }
         }
@@ -111,58 +147,133 @@ export default function ViewProjectScreen() {
       
       if (foundProject) {
         setProject(foundProject);
+        setProfileId(projectOwnerId);
+        
+        // Verificar se o usuário já curtiu o projeto
+        if (user?.uid) {
+          setIsLiked(
+            foundProject.likedBy && 
+            foundProject.likedBy.includes(user.uid)
+          );
+        }
       } else {
         showToast('Projeto não encontrado', 'error');
-        // Para demonstração, criar um projeto fictício
-        setProject(createMockProject(projectId));
+        router.back();
       }
     } catch (error) {
       console.error('Erro ao carregar projeto:', error);
       showToast('Erro ao carregar dados do projeto', 'error');
-      
-      // Para demonstração, criar um projeto fictício
-      setProject(createMockProject(projectId));
+      router.back();
     } finally {
       setIsLoading(false);
     }
   };
   
-  // Função para criar um projeto fictício para demonstração
-  const createMockProject = (id: string): Project => {
-    return {
-      id,
-      title: 'Innoma Jobs - App de Empregos',
-      description: 'Aplicativo mobile para conectar profissionais e recrutadores. Desenvolvido com React Native, Expo e Firebase. Permite a criação de perfis profissionais, compartilhamento de projetos e comunicação direta entre candidatos e empresas.',
-      repoUrl: 'https://github.com/user/innoma-jobs',
-      demoUrl: 'https://innomajobs.app',
-      githubUrl: 'https://github.com/user',
-      linkedinUrl: 'https://linkedin.com/in/user',
-      images: [
-        'https://via.placeholder.com/500x300/4361EE/FFFFFF?text=Tela+Inicial',
-        'https://via.placeholder.com/500x300/4361EE/FFFFFF?text=Perfil',
-        'https://via.placeholder.com/500x300/4361EE/FFFFFF?text=Busca'
-      ],
-      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      skills: ['React Native', 'Expo', 'Firebase', 'TypeScript'],
-      likes: 42,
-      createdAt: '2023-10-10T14:48:00.000Z',
-    };
+  // Funções para o visualizador de imagens
+  const openImageViewer = (index: number) => {
+    setSelectedImageIndex(index);
+    setImageViewerVisible(true);
+  };
+  
+  const nextImage = () => {
+    if (project && selectedImageIndex < project.images.length - 1) {
+      setSelectedImageIndex(selectedImageIndex + 1);
+    }
+  };
+  
+  const prevImage = () => {
+    if (selectedImageIndex > 0) {
+      setSelectedImageIndex(selectedImageIndex - 1);
+    }
   };
   
   // Função para dar like/match no projeto
   const handleLikeProject = async () => {
-    if (!project) return;
+    if (!project || !user?.uid || !profileId) return;
+    
+    // Previne múltiplos cliques durante o processamento
+    if (isLiking) return;
+    
+    setIsLiking(true);
     
     try {
-      // Implementação futura: atualizar likes no Firestore
+      const profileRef = doc(db, 'profiles', profileId);
+      const profileDoc = await getDoc(profileRef);
       
-      // Atualizar contador local
-      setProject(prev => prev ? { ...prev, likes: prev.likes + 1 } : null);
+      if (!profileDoc.exists()) {
+        showToast('Perfil do proprietário não encontrado', 'error');
+        return;
+      }
       
-      showToast('Você deu match neste projeto!', 'success');
+      const profileData = profileDoc.data();
+      const projects = profileData.projects || [];
+      
+      // Encontrar o índice do projeto na array
+      const projectIndex = projects.findIndex((p: Project) => p.id === project.id);
+      
+      if (projectIndex === -1) {
+        showToast('Projeto não encontrado', 'error');
+        return;
+      }
+      
+      // Verificar se o usuário já curtiu
+      const projectLikedBy = projects[projectIndex].likedBy || [];
+      const hasLiked = projectLikedBy.includes(user.uid);
+      
+      // Array atualizada de projetos
+      const updatedProjects = [...projects];
+      
+      if (hasLiked) {
+        // Remover like
+        updatedProjects[projectIndex] = {
+          ...updatedProjects[projectIndex],
+          likes: Math.max((updatedProjects[projectIndex].likes || 0) - 1, 0),
+          likedBy: projectLikedBy.filter((id: string) => id !== user.uid)
+        };
+        
+        setIsLiked(false);
+        showToast('Curtida removida com sucesso!', 'info');
+      } else {
+        // Adicionar like
+        updatedProjects[projectIndex] = {
+          ...updatedProjects[projectIndex],
+          likes: (updatedProjects[projectIndex].likes || 0) + 1,
+          likedBy: [...projectLikedBy, user.uid]
+        };
+        
+        setIsLiked(true);
+        showToast('Você deu match neste projeto!', 'success');
+      }
+      
+      // Atualizar no Firestore
+      await updateDoc(profileRef, {
+        projects: updatedProjects,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      // Atualizar o estado local
+      setProject(prev => {
+        if (!prev) return null;
+        
+        if (hasLiked) {
+          return {
+            ...prev,
+            likes: Math.max((prev.likes || 0) - 1, 0),
+            likedBy: prev.likedBy?.filter(id => id !== user.uid) || []
+          };
+        } else {
+          return {
+            ...prev,
+            likes: (prev.likes || 0) + 1,
+            likedBy: [...(prev.likedBy || []), user.uid]
+          };
+        }
+      });
     } catch (error) {
-      console.error('Erro ao dar like no projeto:', error);
-      showToast('Erro ao dar like no projeto', 'error');
+      console.error('Erro ao dar curtida no projeto:', error);
+      showToast('Erro ao processar sua curtida', 'error');
+    } finally {
+      setIsLiking(false);
     }
   };
   
@@ -230,10 +341,25 @@ export default function ViewProjectScreen() {
     if (!project || !user?.uid) return;
     
     try {
-      // Implementação futura: remover projeto do Firestore
+      const profileRef = doc(db, 'profiles', user.uid);
+      const profileDoc = await getDoc(profileRef);
       
-      showToast('Projeto removido com sucesso', 'success');
-      router.replace('/projects');
+      if (profileDoc.exists()) {
+        const profileData = profileDoc.data();
+        const projects = profileData.projects || [];
+        
+        // Filtrar o projeto a ser removido
+        const updatedProjects = projects.filter((p: Project) => p.id !== project.id);
+        
+        // Atualizar a lista de projetos no Firestore
+        await updateDoc(profileRef, {
+          projects: updatedProjects,
+          updatedAt: new Date().toISOString(),
+        });
+        
+        showToast('Projeto removido com sucesso', 'success');
+        router.replace('/projects');
+      }
     } catch (error) {
       console.error('Erro ao remover projeto:', error);
       showToast('Erro ao remover projeto', 'error');
@@ -244,7 +370,7 @@ export default function ViewProjectScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <LoadingOverlay message="Carregando projeto..." />
       </SafeAreaView>
     );
@@ -254,7 +380,7 @@ export default function ViewProjectScreen() {
   if (!project) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
             Projeto não encontrado
@@ -272,20 +398,97 @@ export default function ViewProjectScreen() {
   // Renderizar a visualização do projeto
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
+      {isLiking && <LoadingOverlay message="Processando..." />}
       
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Carrossel de imagens */}
-        <ProjectImageCarousel 
-          images={project.images} 
-          theme={theme} 
-        />
+        <View style={styles.imageCarouselContainer}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageCarousel}
+          >
+            {project.images.map((image, index) => (
+              <TouchableOpacity 
+                key={`image-${index}`}
+                onPress={() => openImageViewer(index)}
+                activeOpacity={0.9}
+                style={styles.imageContainer}
+              >
+                <Image
+                  source={{ uri: image }}
+                  style={[styles.projectImage, { width: screenWidth }]}
+                  resizeMode="cover"
+                />
+                <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.2)' }]}>
+                  <Icons.MagnifyingGlassPlus size={24} color="#FFFFFF" style={styles.zoomIcon} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          
+          {project.images.length > 1 && (
+            <View style={styles.imageCounter}>
+              <Text style={styles.imageCounterText}>
+                {project.images.map((_, index) => (
+                  <Text 
+                    key={`dot-${index}`}
+                    style={selectedImageIndex === index ? styles.activeDot : styles.inactiveDot}
+                  >
+                    •
+                  </Text>
+                ))}
+              </Text>
+            </View>
+          )}
+        </View>
         
         {/* Conteúdo principal */}
         <View style={styles.content}>
+          {/* Ações e estatísticas rápidas */}
+          <View style={styles.quickStats}>
+            <View style={styles.likeCountContainer}>
+              <Icons.Heart 
+                size={18} 
+                color={theme.colors.primary} 
+                weight={project.likes > 0 ? "fill" : "regular"} 
+              />
+              <Text style={[styles.likeCountText, { color: theme.colors.text.secondary }]}>
+                {project.likes || 0}
+              </Text>
+            </View>
+            
+            <View style={styles.quickActions}>
+              <TouchableOpacity 
+                style={styles.quickActionButton}
+                onPress={handleShareProject}
+              >
+                <Icons.ShareNetwork size={20} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+              
+              {!isOwner && (
+                <TouchableOpacity 
+                  style={[
+                    styles.quickActionButton,
+                    isLiked && { backgroundColor: `${theme.colors.primary}15` }
+                  ]}
+                  onPress={handleLikeProject}
+                >
+                  <Icons.Heart 
+                    size={20} 
+                    color={isLiked ? theme.colors.primary : theme.colors.text.secondary} 
+                    weight={isLiked ? "fill" : "regular"}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+          
           {/* Título e descrição */}
           <Text style={[styles.title, { color: theme.colors.text.primary }]}>
             {project.title}
@@ -296,46 +499,140 @@ export default function ViewProjectScreen() {
           </Text>
           
           {/* Habilidades */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
-              Tecnologias utilizadas
-            </Text>
+          <Card style={styles.sectionCard as ViewStyle}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+                Tecnologias utilizadas
+              </Text>
+            </View>
             
-            <ProjectSkillsList 
-              skills={project.skills} 
-              theme={theme} 
-            />
-          </View>
+            <View style={styles.sectionContent}>
+              <ProjectSkillsList 
+                skills={project.skills} 
+                theme={theme} 
+              />
+            </View>
+          </Card>
           
           {/* Links */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
-              Links
-            </Text>
+          <Card style={styles.sectionCard as ViewStyle}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+                Links
+              </Text>
+            </View>
             
-            <ProjectLinks
-              repoUrl={project.repoUrl}
-              demoUrl={project.demoUrl}
-              videoUrl={project.videoUrl}
-              githubUrl={project.githubUrl}
-              linkedinUrl={project.linkedinUrl}
-              onOpenUrl={handleOpenUrl}
-              onOpenVideo={handleOpenVideo}
+            <View style={styles.sectionContent}>
+              <ProjectLinks
+                repoUrl={project.repoUrl}
+                demoUrl={project.demoUrl}
+                videoUrl={project.videoUrl}
+                githubUrl={project.githubUrl}
+                linkedinUrl={project.linkedinUrl}
+                onOpenUrl={handleOpenUrl}
+                onOpenVideo={handleOpenVideo}
+              />
+            </View>
+          </Card>
+          
+          {/* Ações de projeto */}
+          <View style={styles.actionContainer}>
+            {isOwner ? (
+              // Ações para o dono do projeto
+              <View style={styles.ownerActions}>
+                <Button
+                  title="Editar"
+                  variant="outline"
+                  onPress={handleEditProject}
+                  style={styles.actionButton}
+                  leftIcon={<Icons.PencilSimple size={18} color={theme.colors.primary} />}
+                />
+                
+                <Button
+                  title="Remover"
+                  variant="outline"
+                  onPress={confirmRemoveProject}
+                  style={styles.actionButton}
+                  textStyle={{ color: theme.colors.error }}
+                  leftIcon={<Icons.Trash size={18} color={theme.colors.error} />}
+                />
+              </View>
+            ) : (
+              // Ações para visitantes
+              <View style={styles.visitorActions}>
+                <Button
+                  title={isLiked ? "Remover Match" : "Match"}
+                  variant={isLiked ? "primary" : "outline"}
+                  onPress={handleLikeProject}
+                  style={styles.likeButton}
+                  leftIcon={
+                    <Icons.Heart 
+                      size={18} 
+                      color={isLiked ? "#FFFFFF" : theme.colors.primary} 
+                      weight={isLiked ? "fill" : "regular"} 
+                    />
+                  }
+                />
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+      
+      {/* Modal para visualização de imagens em tela cheia */}
+      <Modal
+        visible={imageViewerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setImageViewerVisible(false)}
+      >
+        <SafeAreaView style={[styles.imageViewerContainer, { backgroundColor: 'rgba(0,0,0,0.95)' }]}>
+          <StatusBar style={isDark ? "light" : "dark"} />
+          
+          <View style={styles.imageViewerHeader}>
+            <TouchableOpacity 
+              onPress={() => setImageViewerVisible(false)}
+              style={styles.closeButton}
+            >
+              <Icons.X size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <Text style={styles.imageCounterText}>
+              {selectedImageIndex + 1} / {project.images.length}
+            </Text>
+          </View>
+          
+          <View style={styles.fullscreenImageContainer}>
+            <Image
+              source={{ uri: project.images[selectedImageIndex] }}
+              style={styles.fullscreenImage}
+              resizeMode="contain"
             />
           </View>
           
-          {/* Ações */}
-          <ProjectActions
-            isOwner={isOwner}
-            onEdit={handleEditProject}
-            onRemove={confirmRemoveProject}
-            onLike={handleLikeProject}
-            onShare={handleShareProject}
-            likeCount={project.likes}
-            theme={theme}
-          />
-        </View>
-      </ScrollView>
+          <View style={styles.navigationControls}>
+            {selectedImageIndex > 0 && (
+              <TouchableOpacity 
+                onPress={prevImage}
+                style={styles.navButton}
+              >
+                <Icons.CaretLeft size={32} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+            
+            <View style={{ flex: 1 }} />
+            
+            {selectedImageIndex < project.images.length - 1 && (
+              <TouchableOpacity 
+                onPress={nextImage}
+                style={styles.navButton}
+              >
+                <Icons.CaretRight size={32} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -346,28 +643,137 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 24,
+  },
+  imageCarouselContainer: {
+    position: 'relative',
+    height: 300,
+  },
+  imageCarousel: {
+    height: 300,
+  },
+  imageContainer: {
+    position: 'relative',
+    height: 300,
+  },
+  projectImage: {
+    height: 300,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0,
+  },
+  zoomIcon: {
+    opacity: 0.8,
+  },
+  imageCounter: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  imageCounterText: {
+    color: 'white',
+    fontSize: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  activeDot: {
+    color: '#FFFFFF',
+    opacity: 1,
+    fontSize: 24,
+    marginHorizontal: 2,
+  },
+  inactiveDot: {
+    color: '#FFFFFF',
+    opacity: 0.5,
+    fontSize: 24,
+    marginHorizontal: 2,
   },
   content: {
     padding: 16,
   },
+  quickStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  likeCountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  likeCountText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quickActionButton: {
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 20,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginVertical: 16,
+    marginBottom: 12,
   },
   description: {
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  section: {
-    marginTop: 16,
-    marginBottom: 8,
+  sectionCard: {
+    marginBottom: 16,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    padding: 16,
+    paddingBottom: 0,
+  },
+  sectionContent: {
+    padding: 16,
+    paddingTop: 8,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  actionContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  ownerActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  visitorActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  actionButton: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  likeButton: {
+    flex: 0.7,
+  },
+  shareButton: {
+    flex: 1,
   },
   errorContainer: {
     flex: 1,
@@ -383,5 +789,37 @@ const styles = StyleSheet.create({
   },
   errorButton: {
     width: 150,
+  },
+  // Estilos para o visualizador de imagens em tela cheia
+  imageViewerContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  imageViewerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  fullscreenImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  navigationControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  navButton: {
+    padding: 8,
   },
 });

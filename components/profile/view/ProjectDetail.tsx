@@ -1,8 +1,19 @@
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import * as Icons from 'phosphor-react-native';
-import React from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  Dimensions,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 interface Project {
   id: string;
@@ -16,6 +27,7 @@ interface Project {
   videoUrl?: string;
   skills: string[];
   likes: number;
+  likedBy?: string[];
   createdAt: string;
 }
 
@@ -27,8 +39,10 @@ interface ProjectDetailProps {
   onOpenUrl: (url?: string) => void;
   onOpenVideo: (url?: string) => void;
   onEdit?: (id: string) => void;
+  onRemove?: (id: string) => void;
   theme: any;
   isOwnProfile?: boolean;
+  isLiked?: boolean;
 }
 
 export const ProjectDetail: React.FC<ProjectDetailProps> = ({
@@ -39,11 +53,38 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
   onOpenUrl,
   onOpenVideo,
   onEdit,
+  onRemove,
   theme,
   isOwnProfile = false,
+  isLiked = false,
 }) => {
   const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
   const imageWidth = screenWidth - 48; // 24px padding on each side
+  
+  // Estado para controlar o modal de visualização de imagem
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  
+  // Função para abrir o visualizador de imagens
+  const openImageViewer = (index: number) => {
+    setSelectedImageIndex(index);
+    setImageViewerVisible(true);
+  };
+  
+  // Função para navegar para a próxima imagem
+  const nextImage = () => {
+    if (selectedImageIndex < project.images.length - 1) {
+      setSelectedImageIndex(selectedImageIndex + 1);
+    }
+  };
+  
+  // Função para navegar para a imagem anterior
+  const prevImage = () => {
+    if (selectedImageIndex > 0) {
+      setSelectedImageIndex(selectedImageIndex - 1);
+    }
+  };
   
   return (
     <View style={styles.expandedProject}>
@@ -85,12 +126,20 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
         contentContainerStyle={styles.projectImagesContent}
       >
         {project.images.map((image, index) => (
-          <Image
+          <TouchableOpacity 
             key={`${project.id}-image-${index}`}
-            source={{ uri: image }}
-            style={[styles.projectImage, { width: imageWidth }]}
-            resizeMode="cover"
-          />
+            onPress={() => openImageViewer(index)}
+            activeOpacity={0.9}
+          >
+            <Image
+              source={{ uri: image }}
+              style={[styles.projectImage, { width: imageWidth }]}
+              resizeMode="cover"
+            />
+            <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.2)' }]}>
+              <Icons.MagnifyingGlassPlus size={24} color="#FFFFFF" style={styles.zoomIcon} />
+            </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
       
@@ -158,30 +207,99 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
               variant="outline"
               onPress={() => onEdit && onEdit(project.id)}
               style={styles.actionButton}
+              leftIcon={<Icons.PencilSimple size={18} color={theme.colors.primary} />}
             />
             <Button
-              title="Compartilhar"
+              title="Remover"
               variant="outline"
-              onPress={() => onShare(project)}
+              onPress={() => onRemove && onRemove(project.id)}
               style={styles.actionButton}
+              leftIcon={<Icons.Trash size={18} color={theme.colors.error} />}
+              textStyle={{ color: theme.colors.error }}
             />
           </>
         ) : (
           <>
             <Button
-              title={`Match (${project.likes})`}
+              title={`${project.likes}`}
               onPress={() => onLike(project.id)}
-              style={styles.actionButton}
+              style={{
+                ...styles.actionButton, 
+                ...(isLiked ? { backgroundColor: theme.colors.primary } : {})
+              }}
+              leftIcon={
+                <Icons.Heart 
+                  size={20} 
+                  color="#FFFFFF"
+                  weight={isLiked ? "fill" : "regular"}
+                />
+              }
             />
             <Button
               title="Compartilhar"
               variant="outline"
               onPress={() => onShare(project)}
               style={styles.actionButton}
+              leftIcon={<Icons.Share size={18} color={theme.colors.primary} />}
             />
           </>
         )}
       </View>
+      
+      {/* Modal para visualização de imagens em tela cheia */}
+      <Modal
+        visible={imageViewerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setImageViewerVisible(false)}
+      >
+        <SafeAreaView style={[styles.imageViewerContainer, { backgroundColor: 'rgba(0,0,0,0.9)' }]}>
+          <StatusBar barStyle="light-content" backgroundColor="black" />
+          
+          <View style={styles.imageViewerHeader}>
+            <TouchableOpacity 
+              onPress={() => setImageViewerVisible(false)}
+              style={styles.closeButton}
+            >
+              <Icons.X size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <Text style={styles.imageCounter}>
+              {selectedImageIndex + 1} / {project.images.length}
+            </Text>
+          </View>
+          
+          <View style={styles.fullscreenImageContainer}>
+            <Image
+              source={{ uri: project.images[selectedImageIndex] }}
+              style={styles.fullscreenImage}
+              resizeMode="contain"
+            />
+          </View>
+          
+          <View style={styles.navigationControls}>
+            {selectedImageIndex > 0 && (
+              <TouchableOpacity 
+                onPress={prevImage}
+                style={styles.navButton}
+              >
+                <Icons.CaretLeft size={32} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+            
+            <View style={{ flex: 1 }} />
+            
+            {selectedImageIndex < project.images.length - 1 && (
+              <TouchableOpacity 
+                onPress={nextImage}
+                style={styles.navButton}
+              >
+                <Icons.CaretRight size={32} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 };
@@ -235,6 +353,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 16,
   },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 16,
+    bottom: 0,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0,
+  },
+  zoomIcon: {
+    opacity: 0.8,
+  },
   projectLinks: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -265,5 +397,42 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     marginHorizontal: 4,
+  },
+  // Estilos para o visualizador de imagens em tela cheia
+  imageViewerContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  imageViewerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  imageCounter: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fullscreenImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  navigationControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  navButton: {
+    padding: 8,
   },
 });

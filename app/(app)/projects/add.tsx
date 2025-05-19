@@ -43,7 +43,7 @@ interface ProjectFormData {
 }
 
 export default function AddProjectScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -283,7 +283,7 @@ export default function AddProjectScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       
       {/* Loading Overlay */}
       {isLoading && <LoadingOverlay message="Salvando projeto..." />}

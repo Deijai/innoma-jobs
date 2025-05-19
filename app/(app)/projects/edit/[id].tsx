@@ -7,16 +7,16 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import uuid from 'react-native-uuid';
 import { Button } from '../../../../components/ui/Button';
@@ -48,7 +48,7 @@ interface Project extends ProjectFormData {
 }
 
 export default function EditProjectScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const projectId = params.id as string;
@@ -349,7 +349,7 @@ export default function EditProjectScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <LoadingOverlay message="Carregando projeto..." />
       </SafeAreaView>
     );
@@ -357,7 +357,7 @@ export default function EditProjectScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
