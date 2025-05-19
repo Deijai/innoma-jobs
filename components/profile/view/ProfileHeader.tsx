@@ -1,9 +1,10 @@
+// components/profile/view/ProfileHeader.tsx (versão modificada)
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { IconButton } from '@/components/ui/IconButton';
-import * as Icons from 'phosphor-react-native';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import * as Icons from 'phosphor-react-native';
 
 interface ProfileHeaderProps {
   name: string;
@@ -12,10 +13,10 @@ interface ProfileHeaderProps {
   photoURL?: string;
   available: boolean;
   onShare: () => void;
-  onMessage: () => void;
   theme: any;
   isOwnProfile?: boolean;
   onEdit?: () => void;
+  profileId: string; // Adicionado o ID do perfil
 }
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -25,10 +26,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   photoURL,
   available,
   onShare,
-  onMessage,
   theme,
   isOwnProfile = false,
   onEdit,
+  profileId
 }) => {
   return (
     <View style={styles.header}>
@@ -40,17 +41,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         />
         
         <View style={styles.profileActions}>
-          {isOwnProfile && onEdit ? (
-            <IconButton
-              icon={<Icons.PencilSimple size={20} color={theme.colors.text.primary} />}
-              variant="outline"
-              size="sm"
-              onPress={onEdit}
-              style={styles.actionButton}
-              round
-            />
-          ) : null}
-          
           <IconButton
             icon={<Icons.Share size={20} color={theme.colors.text.primary} />}
             variant="outline"
@@ -60,12 +50,12 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             round
           />
           
-          {!isOwnProfile && (
+          {isOwnProfile && onEdit && (
             <IconButton
-              icon={<Icons.ChatCircle size={20} color={theme.colors.text.primary} />}
+              icon={<Icons.PencilSimple size={20} color={theme.colors.text.primary} />}
               variant="outline"
               size="sm"
-              onPress={onMessage}
+              onPress={onEdit}
               style={styles.actionButton}
               round
             />
@@ -81,7 +71,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </Text>
         
         <View style={styles.locationContainer}>
-          <Icons.MapPin size={14} color={theme.colors.text.disabled} style={styles.locationIcon} />
+          <Icons.MapPin size={16} color={theme.colors.text.disabled} style={styles.locationIcon} />
           <Text style={[styles.locationText, { color: theme.colors.text.disabled }]}>
             {location}
           </Text>
@@ -105,7 +95,7 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   profileActions: {
     flexDirection: 'row',

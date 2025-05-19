@@ -24,6 +24,8 @@ import { Input } from '../../components/ui/Input';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { db } from '../../services/firebase';
+import { useStartChat } from '@/hooks/useStartChat'; // Importar o hook para iniciar chat
+import { useChat } from '@/context/ChatContext'; // Importar o contexto de chat para notificações
 
 // Tipos de dados
 interface ProfileData {
@@ -42,11 +44,19 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, userData } = useAuth();
   const { showToast } = useToast();
+  const { startChatWithUser } = useStartChat(); // Hook para iniciar chat
+  const { conversations } = useChat(); // Obtém as conversas para mostrar notificações
   
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [profiles, setProfiles] = useState<ProfileData[]>([]);
+  
+  // Calcular notificações não lidas
+  const unreadMessagesCount = conversations.reduce(
+    (count, conversation) => count + (conversation.unreadCount || 0), 
+    0
+  );
   
   // Animação para o loading dos cards
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -164,10 +174,15 @@ export default function HomeScreen() {
     router.push(`/profile/view/${profileId}`);
   };
 
-  // Navegar para mensagens
+  // Navegar para a tela de mensagens
+  const navigateToMessages = () => {
+    router.push('/messages');
+  };
+
+  // Iniciar chat com um usuário
   const handleSendMessage = (profileId: string) => {
-    // Implementação futura
-    showToast('Funcionalidade de mensagens será implementada em breve', 'info');
+    // Usar startChatWithUser para iniciar conversa e navegar para o chat
+    startChatWithUser(profileId);
   };
 
   // Renderizar item do perfil
@@ -342,13 +357,26 @@ export default function HomeScreen() {
             </Text>
           </View>
           
-          <IconButton
-            icon={<Icons.Bell size={24} color={theme.colors.text.primary} />}
-            variant="ghost"
-            size="md"
-            onPress={() => showToast('Notificações serão implementadas em breve', 'info')}
-            style={styles.notificationButton}
-          />
+          {/* Ícone de notificação com contador de mensagens não lidas */}
+          <View style={styles.notificationContainer}>
+            <IconButton
+              icon={<Icons.Bell size={24} color={theme.colors.text.primary} />}
+              variant="ghost"
+              size="md"
+              onPress={navigateToMessages}
+              style={styles.notificationButton}
+            />
+            {unreadMessagesCount > 0 && (
+              <View style={[
+                styles.notificationBadge,
+                { backgroundColor: theme.colors.primary }
+              ]}>
+                <Text style={styles.notificationCount}>
+                  {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
         
         <View style={styles.searchInputContainer}>
@@ -431,8 +459,29 @@ const styles = StyleSheet.create({
   subGreeting: {
     fontSize: 14,
   },
+  notificationContainer: {
+    position: 'relative',
+  },
   notificationButton: {
     marginTop: -4,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: 'white',
+  },
+  notificationCount: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   searchInputContainer: {
     marginBottom: 8,

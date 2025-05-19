@@ -1,42 +1,69 @@
-// app/(app)/_layout.tsx
+// app/(app)/_layout.tsx (com notificações)
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { Redirect, Tabs } from 'expo-router';
 import * as Icons from 'phosphor-react-native';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { useChat } from '@/context/ChatContext';
+import { NotificationBadge } from '@/components/chat/NotificationBadge';
 
+// Componente de ícone com notificação
+interface TabIconProps {
+  icon: React.ReactNode;
+  showBadge?: boolean;
+  badgeCount?: number;
+}
+
+function TabIcon({ icon, showBadge = false, badgeCount = 0 }: TabIconProps) {
+  return (
+    <View style={styles.iconContainer}>
+      {icon}
+      {showBadge && badgeCount > 0 && (
+        <NotificationBadge count={badgeCount} size="sm" />
+      )}
+    </View>
+  );
+}
 
 // Ícones para as tabs
 function HomeIcon({ focused, color }: { focused: boolean; color: string }) {
   return (
-    <View style={styles.iconContainer}>
-      <Icons.House size={24} color={color} />
-    </View>
+    <TabIcon 
+      icon={<Icons.House size={24} color={color} />}
+    />
   );
 }
 
 function ProfileIcon({ focused, color }: { focused: boolean; color: string }) {
   return (
-    <View style={styles.iconContainer}>
-      <Icons.UserCircle size={24} color={color} />
-    </View>
+    <TabIcon 
+      icon={<Icons.UserCircle size={24} color={color} />}
+    />
   );
 }
 
 function MessagesIcon({ focused, color }: { focused: boolean; color: string }) {
+  const { conversations } = useChat();
+  const unreadCount = conversations.reduce(
+    (count, conversation) => count + (conversation.unreadCount || 0), 
+    0
+  );
+  
   return (
-    <View style={styles.iconContainer}>
-      <Icons.ChatCircle size={24} color={color} />
-    </View>
+    <TabIcon 
+      icon={<Icons.ChatCircle size={24} color={color} />}
+      showBadge={true}
+      badgeCount={unreadCount}
+    />
   );
 }
 
 function SettingsIcon({ focused, color }: { focused: boolean; color: string }) {
   return (
-    <View style={styles.iconContainer}>
-      <Icons.Gear size={24} color={color} />
-    </View>
+    <TabIcon 
+      icon={<Icons.Gear size={24} color={color} />}
+    />
   );
 }
 
@@ -108,7 +135,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Meu Perfil',
+          title: 'Perfil',
           tabBarIcon: ({ focused, color }) => <ProfileIcon focused={focused} color={color} />,
         }}
       />
@@ -129,5 +156,6 @@ const styles = StyleSheet.create({
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   }
 });

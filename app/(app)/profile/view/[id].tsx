@@ -1,3 +1,4 @@
+// app/(app)/profile/view/[id].tsx
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,9 +15,7 @@ import {
   StyleSheet,
   Text,
   View,
-  ViewStyle,
 } from 'react-native';
-import { Button } from '../../../../components/ui/Button';
 import { Card } from '../../../../components/ui/Card';
 import { Divider } from '../../../../components/ui/Divider';
 import { LoadingOverlay } from '../../../../components/ui/LoadingOverlay';
@@ -24,7 +23,7 @@ import { SkeletonProfileHeader } from '../../../../components/ui/Skeleton';
 import { useToast } from '../../../../components/ui/Toast';
 import { db } from '../../../../services/firebase';
 
-// Importação dos componentes criados
+// Importação dos componentes
 import { EducationSection } from '../../../../components/profile/view/EducationSection';
 import { ExperiencesSection } from '../../../../components/profile/view/ExperiencesSection';
 import { LanguagesSection } from '../../../../components/profile/view/LanguagesSection';
@@ -33,6 +32,7 @@ import { ProfileInfoSection } from '../../../../components/profile/view/ProfileI
 import { ProfileTabs } from '../../../../components/profile/view/ProfileTabs';
 import { ProjectDetail } from '../../../../components/profile/view/ProjectDetail';
 import { ProjectList } from '../../../../components/profile/view/ProjectList';
+import { ProfileActions } from '../../../../components/profile/view/ProfileActions';
 
 // Interface para os dados do projeto
 interface Project {
@@ -272,15 +272,6 @@ export default function ViewProfileScreen() {
     }
   };
 
-  // Iniciar chat
-  const startChat = () => {
-    if (!profileData) return;
-
-    // Implementação futura
-    Alert.alert('Mensagem', `Iniciar conversa com ${profileData.name}`);
-    // router.push(`/messages/chat/${profileId}`);
-  };
-
   // Navegar para edição de perfil
   const navigateToEditProfile = () => {
     if (isOwnProfile) {
@@ -387,11 +378,9 @@ export default function ViewProfileScreen() {
           <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
             Não foi possível carregar o perfil
           </Text>
-          <Button
-            title="Tentar novamente"
-            onPress={loadProfileData}
-            style={styles.retryButton}
-          />
+          <Card>
+            <Text>Tente novamente mais tarde</Text>
+          </Card>
         </View>
       </SafeAreaView>
     );
@@ -419,10 +408,18 @@ export default function ViewProfileScreen() {
           photoURL={profileData.photoURL}
           available={profileData.available}
           onShare={shareProfile}
-          onMessage={startChat}
           theme={theme}
           isOwnProfile={isOwnProfile}
           onEdit={navigateToEditProfile}
+          profileId={profileId}
+        />
+        
+        {/* Ações do perfil (mensagem ou editar) */}
+        <ProfileActions
+          profileId={profileId}
+          isOwnProfile={isOwnProfile}
+          onEdit={navigateToEditProfile}
+          theme={theme}
         />
 
         {/* Tabs de navegação */}
@@ -437,7 +434,7 @@ export default function ViewProfileScreen() {
         {/* Conteúdo da aba de perfil */}
         {activeTab === 'profile' && !selectedProject && (
           <>
-            <Card style={styles.sectionCard as ViewStyle}>
+            <Card style={styles.sectionCard}>
               <View style={styles.sectionContent}>
                 <ProfileInfoSection
                   about={profileData.about}
@@ -447,7 +444,7 @@ export default function ViewProfileScreen() {
               </View>
             </Card>
 
-            <Card style={styles.sectionCard as ViewStyle}>
+            <Card style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
                   Experiência
@@ -461,7 +458,7 @@ export default function ViewProfileScreen() {
               </View>
             </Card>
 
-            <Card style={styles.sectionCard as ViewStyle}>
+            <Card style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
                   Formação acadêmica
@@ -475,7 +472,7 @@ export default function ViewProfileScreen() {
               </View>
             </Card>
 
-            <Card style={styles.sectionCard as ViewStyle}>
+            <Card style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
                   Idiomas
@@ -488,33 +485,6 @@ export default function ViewProfileScreen() {
                 />
               </View>
             </Card>
-
-            {/* Só mostrar botão de mensagem se não for o próprio perfil */}
-            {!isOwnProfile && (
-              <View style={styles.contactSection}>
-                <Button
-                  title="Enviar mensagem"
-                  onPress={startChat}
-                  style={styles.contactButton}
-                  fullWidth
-                  leftIcon={<Icons.ChatTeardropText size={20} color="#FFFFFF" />}
-                />
-              </View>
-            )}
-
-            {/* Mostrar botão de edição se for o próprio perfil */}
-            {isOwnProfile && (
-              <View style={styles.contactSection}>
-                <Button
-                  title="Editar perfil"
-                  onPress={navigateToEditProfile}
-                  style={styles.contactButton}
-                  fullWidth
-                  variant="outline"
-                  leftIcon={<Icons.PencilSimple size={20} color={theme.colors.primary} />}
-                />
-              </View>
-            )}
           </>
         )}
 

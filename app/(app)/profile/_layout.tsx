@@ -21,7 +21,7 @@ export default function ProfileLayout() {
           headerShown: true,
           headerTitle: 'Perfil',
           headerTintColor: theme.colors.text.primary,
-          presentation: 'containedModal',
+          presentation: 'modal',
           headerStyle: {
             backgroundColor: theme.colors.background,
           },
