@@ -7,7 +7,9 @@ import {
   SafeAreaView, 
   StyleSheet, 
   Text, 
-  View 
+  View,
+  Animated,
+  Dimensions
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -17,11 +19,11 @@ import { useToast } from '@/components/ui/Toast';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { MessageInput } from '@/components/chat/MessageInput';
+import * as Icons from 'phosphor-react-native';
 
 // Importar serviços e interfaces de chat
 import { 
   Message, 
-  Conversation, 
   getMessages, 
   sendMessage as sendNewMessage, 
   markMessagesAsRead, 
@@ -60,22 +62,42 @@ export default function ChatScreen() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [messagesLoaded, setMessagesLoaded] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   
   const flatListRef = useRef<FlatList>(null);
+  
+  // Animações para a UI
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
 
   // Rolar para o final da lista quando a tela receber foco
   useFocusEffect(
     React.useCallback(() => {
-      // Quando a tela recebe foco, verifica se há mensagens e rola para o final
       if (messages.length > 0 && flatListRef.current && messagesLoaded) {
         scrollToEnd();
       }
       
-      return () => {
-        // Cleanup quando a tela perde o foco (opcional)
-      };
+      return () => {};
     }, [messages.length, messagesLoaded])
   );
+
+  // Animar elementos ao carregar
+  useEffect(() => {
+    if (!isLoading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        })
+      ]).start();
+    }
+  }, [isLoading]);
 
   // Função para rolar até o final da lista de mensagens
   const scrollToEnd = (animated = true) => {
@@ -83,7 +105,7 @@ export default function ChatScreen() {
       if (flatListRef.current) {
         flatListRef.current.scrollToEnd({ animated });
       }
-    }, 200); // Atraso para garantir que a lista tenha sido renderizada
+    }, 200);
   };
 
   // Carregar detalhes da conversa e configurar listener de mensagens
@@ -112,7 +134,6 @@ export default function ChatScreen() {
             // Marcar mensagens como lidas quando chegarem novas
             if (newMessages.length > 0) {
               markMessagesAsRead(conversationId, user.uid);
-              // Tentar rolar até o final quando chegam novas mensagens
               scrollToEnd();
             }
           });
@@ -227,19 +248,20 @@ export default function ChatScreen() {
 
   // Enviar mensagem
   const handleSendMessage = async (text: string) => {
-    if (!user?.uid || !conversationId) {
+    if (!user?.uid || !conversationId || isSending) {
       showToast("Erro ao enviar mensagem", "error");
       return;
     }
     
     try {
+      setIsSending(true);
       await sendNewMessage(conversationId, user.uid, text);
-      
-      // Rolar para o final depois de enviar a mensagem
       scrollToEnd();
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       showToast('Erro ao enviar mensagem', 'error');
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -277,7 +299,10 @@ export default function ChatScreen() {
     return (
       <View style={styles.dateSeparator}>
         <View style={[styles.dateLine, { backgroundColor: theme.colors.border }]} />
-        <View style={[styles.dateBubble, { backgroundColor: theme.colors.card }]}>
+        <View style={[styles.dateBubble, { 
+          backgroundColor: isDark ? `${theme.colors.card}95` : theme.colors.card,
+          borderColor: theme.colors.border,
+        }]}>
           <Text style={[styles.dateText, { color: theme.colors.text.secondary }]}>
             {dateText}
           </Text>
@@ -322,7 +347,7 @@ export default function ChatScreen() {
     
     const isOwn = user?.uid === item.senderId;
     
-    // Verificar se deve mostrar o horário (última mensagem ou mudança de dia)
+    // Verificar se deve mostrar o horário
     const showTime = index === messages.length - 1 || 
       (index < messages.length - 1 && 
         messages[index + 1] && 
@@ -351,7 +376,7 @@ export default function ChatScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={isDark ? "light" : "dark"} />
       
-      {/* Cabeçalho */}
+      {/* Cabeçalho aprimorado */}
       <ChatHeader
         recipientName={recipientInfo.name}
         recipientPhotoURL={recipientInfo.photoURL}
@@ -363,9 +388,8 @@ export default function ChatScreen() {
       <KeyboardAvoidingView 
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
       >
-        {/* Área de mensagens */}
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -374,42 +398,62 @@ export default function ChatScreen() {
             </Text>
           </View>
         ) : (
-          <FlatList
-            ref={flatListRef}
-            data={getProcessedMessages()}
-            renderItem={renderItem}
-            keyExtractor={(item) => ('id' in item) ? item.id : `item-${Math.random()}`}
-            contentContainerStyle={styles.messagesList}
-            inverted={false}
-            onContentSizeChange={() => {
-              if (messagesLoaded) {
-                scrollToEnd(false);
+          <Animated.View 
+            style={[
+              styles.messagesContainer,
+              { 
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
               }
-            }}
-            onLayout={() => {
-              if (messagesLoaded) {
-                scrollToEnd(false);
+            ]}
+          >
+            <FlatList
+              ref={flatListRef}
+              data={getProcessedMessages()}
+              renderItem={renderItem}
+              keyExtractor={(item) => ('id' in item) ? item.id : `item-${Math.random()}`}
+              contentContainerStyle={styles.messagesList}
+              inverted={false}
+              onContentSizeChange={() => {
+                if (messagesLoaded) {
+                  scrollToEnd(false);
+                }
+              }}
+              onLayout={() => {
+                if (messagesLoaded) {
+                  scrollToEnd(false);
+                }
+              }}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <View style={[styles.emptyIconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
+                    <Icons.ChatText size={32} color={theme.colors.primary} weight="fill" />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>
+                    Inicie uma conversa
+                  </Text>
+                  <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
+                    Nenhuma mensagem ainda. Envie uma mensagem para começar a conversa!
+                  </Text>
+                </View>
               }
-            }}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
-                  Nenhuma mensagem ainda. Comece a conversa!
-                </Text>
-              </View>
-            }
-          />
+            />
+          </Animated.View>
         )}
         
-        {/* Input de mensagem */}
+        {/* Input de mensagem aprimorado */}
         <MessageInput 
           onSendMessage={handleSendMessage}
-          disabled={isLoading}
+          disabled={isLoading || isSending}
+          placeholder={`Mensagem para ${recipientInfo.name.split(' ')[0]}...`}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+// Dimensões da tela para melhor responsividade
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -418,94 +462,14 @@ const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
   },
-  // Estilos do cabeçalho
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-    paddingVertical: 12,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  messagesContainer: {
     flex: 1,
   },
-  backButton: {
-    marginRight: 12,
-    padding: 4,
-  },
-  recipientInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  headerTextContainer: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  recipientName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  recipientTitle: {
-    fontSize: 12,
-    marginTop: 1,
-  },
-  viewProfileButton: {
-    padding: 6,
-  },
-  
   // Estilos das mensagens
   messagesList: {
     flexGrow: 1,
     paddingVertical: 16,
     paddingHorizontal: 12,
-  },
-  messageBubbleContainer: {
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  ownMessageContainer: {
-    justifyContent: 'flex-end',
-    marginLeft: 60, // Espaço para mensagens próprias ficarem mais à direita
-  },
-  otherMessageContainer: {
-    justifyContent: 'flex-start',
-    marginRight: 60, // Espaço para mensagens de outros ficarem mais à esquerda
-  },
-  messageBubble: {
-    borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    maxWidth: '100%',
-    minWidth: 40,
-  },
-  ownMessage: {
-    borderBottomRightRadius: 4, // Formato de balão
-  },
-  otherMessage: {
-    borderBottomLeftRadius: 4, // Formato de balão
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  messageTime: {
-    fontSize: 11,
-    alignSelf: 'flex-end',
-    marginTop: 4,
-  },
-  messageStatus: {
-    marginLeft: 4,
-    alignSelf: 'flex-end',
-    marginBottom: 2,
   },
   
   // Estilos do separador de data
@@ -524,47 +488,16 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     marginHorizontal: 8,
+    borderWidth: 0.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   dateText: {
     fontSize: 12,
     fontWeight: '500',
-  },
-  
-  // Estilos do input
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    paddingVertical: 10,
-  },
-  textInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: 40,
-    maxHeight: 120,
-    marginRight: 8,
-    alignItems: 'center',
-  },
-  attachButton: {
-    marginRight: 8,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingTop: 0,
-    paddingBottom: 0,
-    maxHeight: 100,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   
   // Estilos de estados de carregamento e vazios
@@ -574,7 +507,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
   },
   emptyContainer: {
@@ -582,11 +515,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
-    paddingTop: 100,
+    paddingTop: 120,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 12,
   },
   emptyText: {
     fontSize: 16,
     textAlign: 'center',
-    opacity: 0.8,
+    lineHeight: 24,
+    marginHorizontal: 24,
   },
 });

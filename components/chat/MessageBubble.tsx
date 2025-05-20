@@ -1,8 +1,8 @@
-// components/chat/MessageBubble.tsx
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Animated } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { Message } from '@/services/chatService';
+import * as Icons from 'phosphor-react-native';
 
 interface MessageBubbleProps {
   message: Message;
@@ -15,7 +15,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   isOwn,
   showTime = true
 }) => {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   
   // Formatar horário da mensagem
   const formatTime = (date: Date) => {
@@ -25,6 +25,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     });
   };
 
+  // Verificar se a mensagem tem um timestamp válido
+  const hasValidTimestamp = message.createdAt && typeof message.createdAt.toDate === 'function';
+  const messageTime = hasValidTimestamp ? message.createdAt.toDate() : new Date();
+
   return (
     <View style={[
       styles.container,
@@ -33,8 +37,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       <View style={[
         styles.bubble,
         isOwn 
-          ? [styles.ownBubble, { backgroundColor: theme.colors.primary }]
-          : [styles.otherBubble, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]
+          ? [
+              styles.ownBubble, 
+              { 
+                backgroundColor: theme.colors.primary,
+                shadowColor: isDark ? 'rgba(0,0,0,0.3)' : theme.colors.primary,
+              }
+            ]
+          : [
+              styles.otherBubble, 
+              { 
+                backgroundColor: isDark ? `${theme.colors.card}` : '#FFFFFF',
+                borderColor: theme.colors.border,
+                shadowColor: 'rgba(0,0,0,0.15)',
+              }
+            ]
       ]}>
         <Text style={[
           styles.messageText,
@@ -43,13 +60,23 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           {message.text}
         </Text>
         
-        {showTime && message.createdAt && (
-          <Text style={[
-            styles.timeText,
-            { color: isOwn ? 'rgba(255, 255, 255, 0.7)' : theme.colors.text.secondary }
-          ]}>
-            {formatTime(message.createdAt.toDate())}
-          </Text>
+        {showTime && hasValidTimestamp && (
+          <View style={styles.timeContainer}>
+            {isOwn && message.read && (
+              <Icons.CheckCircle 
+                size={12} 
+                color={isOwn ? 'rgba(255, 255, 255, 0.7)' : theme.colors.text.disabled} 
+                style={styles.readIcon}
+                weight="fill"
+              />
+            )}
+            <Text style={[
+              styles.timeText,
+              { color: isOwn ? 'rgba(255, 255, 255, 0.7)' : theme.colors.text.disabled }
+            ]}>
+              {formatTime(messageTime)}
+            </Text>
+          </View>
         )}
       </View>
     </View>
@@ -70,23 +97,35 @@ const styles = StyleSheet.create({
   },
   bubble: {
     maxWidth: '80%',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   ownBubble: {
     borderBottomRightRadius: 4,
   },
   otherBubble: {
     borderBottomLeftRadius: 4,
-    borderWidth: 1,
+    borderWidth: 0.5,
   },
   messageText: {
     fontSize: 16,
+    lineHeight: 22,
+  },
+  timeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+  },
+  readIcon: {
+    marginRight: 4,
   },
   timeText: {
     fontSize: 11,
-    marginTop: 4,
-    textAlign: 'right',
   }
 });
