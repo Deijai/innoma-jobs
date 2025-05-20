@@ -83,7 +83,7 @@ export default function SettingsScreen() {
   };
 
   const navigateToProfile = () => {
-    router.push('/(profile)/edit');
+    router.push('/(profile)');
   };
 
   // Função para renderizar um item de configuração

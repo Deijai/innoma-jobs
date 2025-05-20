@@ -1,3 +1,4 @@
+// app/(app)/home.tsx (modificado)
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
@@ -24,8 +25,8 @@ import { Input } from '../../components/ui/Input';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { db } from '../../services/firebase';
-import { useStartChat } from '@/hooks/useStartChat'; // Importar o hook para iniciar chat
-import { useChat } from '@/context/ChatContext'; // Importar o contexto de chat para notificações
+import { useStartChat } from '@/hooks/useStartChat';
+import { useChat } from '@/context/ChatContext';
 
 // Tipos de dados
 interface ProfileData {
@@ -44,8 +45,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, userData } = useAuth();
   const { showToast } = useToast();
-  const { startChatWithUser } = useStartChat(); // Hook para iniciar chat
-  const { conversations } = useChat(); // Obtém as conversas para mostrar notificações
+  const { startChatWithUser } = useStartChat();
+  const { conversations } = useChat();
   
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -115,12 +116,6 @@ export default function HomeScreen() {
       });
       
       setProfiles(loadedProfiles);
-      // Se nenhum perfil foi encontrado, apenas mantemos a lista vazia
-      if (loadedProfiles.length === 0) {
-        // No ambiente de produção, não precisamos usar mocks
-        // Apenas mostramos o estado de "nenhum resultado"
-        setProfiles([]);
-      }
     } catch (error) {
       console.error('Erro ao carregar perfis:', error);
       showToast('Ocorreu um erro ao carregar os perfis', 'error');
@@ -171,12 +166,18 @@ export default function HomeScreen() {
 
   // Navegar para detalhes do perfil
   const navigateToProfileDetails = (profileId: string) => {
-    router.push(`/(profile)/view/${profileId}`);
+    // Navegar para a nova rota de visualização de profissionais
+    router.push(`/(profile)/professionals/${profileId}`);
   };
 
   // Navegar para a tela de mensagens
   const navigateToMessages = () => {
     router.push('/messages');
+  };
+
+  // Navegar para a tela de lista de profissionais
+  const navigateToProfessionals = () => {
+    router.push('/(profile)/professionals');
   };
 
   // Iniciar chat com um usuário
@@ -399,11 +400,15 @@ export default function HomeScreen() {
             : 'Recrutadores Ativos'}
         </Text>
         
-        {!isLoading && (
-          <Text style={[styles.resultCount, { color: theme.colors.text.secondary }]}>
-            {filteredProfiles.length} {filteredProfiles.length === 1 ? 'resultado' : 'resultados'}
+        <TouchableOpacity 
+          onPress={navigateToProfessionals}
+          style={styles.viewAllLink}
+        >
+          <Text style={[styles.viewAllText, { color: theme.colors.primary }]}>
+            Ver todos
           </Text>
-        )}
+          <Icons.ArrowRight size={16} color={theme.colors.primary} />
+        </TouchableOpacity>
       </View>
       
       <FlatList
@@ -500,6 +505,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
+  },
+  viewAllLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 4,
   },
   resultCount: {
     fontSize: 14,

@@ -273,7 +273,8 @@ export default function ChatScreen() {
   // Visualizar perfil do destinatário
   const handleViewProfile = () => {
     if (recipientInfo.id) {
-      router.push(`/(profile)/view/${recipientInfo.id}`);
+      //router.push(`/(profile)/view/${recipientInfo.id}`);
+      router.push(`/(profile)/professionals/${recipientInfo.id}`);
     }
   };
 

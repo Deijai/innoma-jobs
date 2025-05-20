@@ -386,7 +386,7 @@ export default function EditProfileScreen() {
       }
 
       showToast('Perfil atualizado com sucesso', 'success');
-      //router.push(`/(profile)/edit`);
+      router.push(`/(profile)`);
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
       showToast('Erro ao salvar perfil', 'error');

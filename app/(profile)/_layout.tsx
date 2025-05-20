@@ -15,8 +15,19 @@ export default function ProfileLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="edit" />
-      <Stack.Screen 
-        name="view/[id]" 
+      <Stack.Screen name="professionals/index" />
+      <Stack.Screen name="professionals/[id]" options={{
+        headerShown: true,
+        headerTitle: 'Perfil profissional',
+        headerTintColor: theme.colors.text.primary,
+        presentation: 'modal',
+        headerStyle: {
+          backgroundColor: theme.colors.background,
+        },
+        headerShadowVisible: false,
+      }} />
+      <Stack.Screen
+        name="view/[id]"
         options={{
           headerShown: true,
           headerTitle: 'Perfil',
