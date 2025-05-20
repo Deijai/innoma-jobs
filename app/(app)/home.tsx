@@ -171,7 +171,7 @@ export default function HomeScreen() {
 
   // Navegar para detalhes do perfil
   const navigateToProfileDetails = (profileId: string) => {
-    router.push(`/profile/view/${profileId}`);
+    router.push(`/(profile)/view/${profileId}`);
   };
 
   // Navegar para a tela de mensagens

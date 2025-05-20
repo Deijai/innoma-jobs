@@ -16,23 +16,23 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Card } from '../../../../components/ui/Card';
-import { Divider } from '../../../../components/ui/Divider';
-import { LoadingOverlay } from '../../../../components/ui/LoadingOverlay';
-import { SkeletonProfileHeader } from '../../../../components/ui/Skeleton';
-import { useToast } from '../../../../components/ui/Toast';
-import { db } from '../../../../services/firebase';
+import { Card } from '../../../components/ui/Card';
+import { Divider } from '../../../components/ui/Divider';
+import { LoadingOverlay } from '../../../components/ui/LoadingOverlay';
+import { SkeletonProfileHeader } from '../../../components/ui/Skeleton';
+import { useToast } from '../../../components/ui/Toast';
+import { db } from '../../../services/firebase';
 
 // Importação dos componentes
-import { EducationSection } from '../../../../components/profile/view/EducationSection';
-import { ExperiencesSection } from '../../../../components/profile/view/ExperiencesSection';
-import { LanguagesSection } from '../../../../components/profile/view/LanguagesSection';
-import { ProfileHeader } from '../../../../components/profile/view/ProfileHeader';
-import { ProfileInfoSection } from '../../../../components/profile/view/ProfileInfoSection';
-import { ProfileTabs } from '../../../../components/profile/view/ProfileTabs';
-import { ProjectDetail } from '../../../../components/profile/view/ProjectDetail';
-import { ProjectList } from '../../../../components/profile/view/ProjectList';
-import { ProfileActions } from '../../../../components/profile/view/ProfileActions';
+import { EducationSection } from '../../../components/profile/view/EducationSection';
+import { ExperiencesSection } from '../../../components/profile/view/ExperiencesSection';
+import { LanguagesSection } from '../../../components/profile/view/LanguagesSection';
+import { ProfileHeader } from '../../../components/profile/view/ProfileHeader';
+import { ProfileInfoSection } from '../../../components/profile/view/ProfileInfoSection';
+import { ProfileTabs } from '../../../components/profile/view/ProfileTabs';
+import { ProjectDetail } from '../../../components/projects/ProjectDetail';
+import { ProjectList } from '../../../components/projects/ProjectList';
+import { ProfileActions } from '../../../components/profile/view/ProfileActions';
 
 // Interface para os dados do projeto
 interface Project {
@@ -275,7 +275,7 @@ export default function ViewProfileScreen() {
   // Navegar para edição de perfil
   const navigateToEditProfile = () => {
     if (isOwnProfile) {
-      router.push('/profile/edit');
+      router.push('/(profile)/edit');
     }
   };
 

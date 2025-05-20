@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { Redirect, Tabs } from 'expo-router';
 import * as Icons from 'phosphor-react-native';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { useChat } from '@/context/ChatContext';
 import { NotificationBadge } from '@/components/chat/NotificationBadge';
@@ -29,29 +29,35 @@ function TabIcon({ icon, showBadge = false, badgeCount = 0 }: TabIconProps) {
 // Ícones para as tabs
 function HomeIcon({ focused, color }: { focused: boolean; color: string }) {
   return (
-    <TabIcon 
+    <TabIcon
       icon={<Icons.House size={24} color={color} />}
     />
   );
 }
 
-function ProfileIcon({ focused, color }: { focused: boolean; color: string }) {
-  return (
-    <TabIcon 
-      icon={<Icons.UserCircle size={24} color={color} />}
-    />
-  );
-}
-
 function MessagesIcon({ focused, color }: { focused: boolean; color: string }) {
-  const { conversations } = useChat();
+  const { conversations, refreshConversations } = useChat();
   const unreadCount = conversations.reduce(
-    (count, conversation) => count + (conversation.unreadCount || 0), 
+    (count, conversation) => count + (conversation.unreadCount || 0),
     0
   );
-  
+
+  useEffect(() => {
+  if (focused) {
+    const fetchData = async () => {
+      try {
+        await refreshConversations();
+      } catch (error) {
+        console.error('Erro ao atualizar conversas:', error);
+      }
+    };
+    
+    fetchData();
+  }
+}, [focused, refreshConversations]);
+
   return (
-    <TabIcon 
+    <TabIcon
       icon={<Icons.ChatCircle size={24} color={color} />}
       showBadge={true}
       badgeCount={unreadCount}
@@ -61,7 +67,7 @@ function MessagesIcon({ focused, color }: { focused: boolean; color: string }) {
 
 function SettingsIcon({ focused, color }: { focused: boolean; color: string }) {
   return (
-    <TabIcon 
+    <TabIcon
       icon={<Icons.Gear size={24} color={color} />}
     />
   );
@@ -130,13 +136,6 @@ export default function AppLayout() {
         options={{
           title: 'Mensagens',
           tabBarIcon: ({ focused, color }) => <MessagesIcon focused={focused} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ focused, color }) => <ProfileIcon focused={focused} color={color} />,
         }}
       />
       <Tabs.Screen

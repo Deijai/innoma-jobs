@@ -2,24 +2,19 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { Avatar } from '@/components/ui/Avatar';
+import { Avatar } from '../ui/Avatar';
 import { ChatConversation } from '@/context/ChatContext';
 
 interface ConversationItemProps {
   conversation: ChatConversation;
-  onPress: (conversationId: string) => void;
-  isActive?: boolean;
+  onPress: (id: string) => void;
 }
 
-export const ConversationItem: React.FC<ConversationItemProps> = ({
-  conversation,
-  onPress,
-  isActive = false
-}) => {
+export const ConversationItem: React.FC<ConversationItemProps> = ({ conversation, onPress }) => {
   const { theme } = useTheme();
   
-  // Formatar data relativa
-  const formatRelativeTime = (date: Date): string => {
+  // Calcular tempo relativo desde a última mensagem
+  const formatRelativeTime = (date: Date) => {
     const now = new Date();
     const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
@@ -27,20 +22,23 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
     if (diffMinutes < 60) return `${diffMinutes} min`;
     
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours} h`;
+    if (diffHours < 24) return `${diffHours}h`;
     
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays} d`;
+    if (diffDays < 7) return `${diffDays}d`;
     
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
   return (
     <TouchableOpacity 
       style={[
-        styles.container,
+        styles.conversationItem, 
         { borderBottomColor: theme.colors.border },
-        isActive && { backgroundColor: `${theme.colors.primary}10` }
+        conversation.unreadCount > 0 && [
+          styles.newConversationHighlight, 
+          { backgroundColor: `${theme.colors.primary}08` }
+        ]
       ]}
       onPress={() => onPress(conversation.id)}
       activeOpacity={0.7}
@@ -66,11 +64,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         )}
       </View>
       
-      <View style={styles.contentContainer}>
-        <View style={styles.headerContainer}>
+      <View style={styles.conversationContent}>
+        <View style={styles.conversationHeader}>
           <Text 
             style={[
-              styles.nameText, 
+              styles.recipientName, 
               { color: theme.colors.text.primary },
               conversation.unreadCount > 0 && styles.boldText,
             ]}
@@ -81,7 +79,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           
           <Text 
             style={[
-              styles.timeText, 
+              styles.messageTime, 
               { color: theme.colors.text.disabled },
               conversation.unreadCount > 0 && { color: theme.colors.primary },
             ]}
@@ -92,7 +90,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         
         <Text 
           style={[
-            styles.messageText, 
+            styles.lastMessage, 
             { color: theme.colors.text.secondary },
             conversation.unreadCount > 0 && [
               styles.boldText, 
@@ -101,7 +99,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           ]}
           numberOfLines={2}
         >
-          {conversation.lastMessageText || 'Iniciar conversa...'}
+          {conversation.lastMessageText}
         </Text>
       </View>
     </TouchableOpacity>
@@ -109,51 +107,56 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
+  conversationItem: {
     flexDirection: 'row',
     padding: 16,
     borderBottomWidth: 1,
   },
+  newConversationHighlight: {
+    // Cor de destaque para conversas com mensagens não lidas
+  },
   avatarContainer: {
     position: 'relative',
     marginRight: 12,
+    justifyContent: 'center',
   },
   unreadBadge: {
     position: 'absolute',
-    top: 0,
+    top: -2,
     right: -2,
-    width: 20,
+    minWidth: 20,
     height: 20,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'white',
+    paddingHorizontal: 4,
   },
   unreadCount: {
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
   },
-  contentContainer: {
+  conversationContent: {
     flex: 1,
     justifyContent: 'center',
   },
-  headerContainer: {
+  conversationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
   },
-  nameText: {
+  recipientName: {
     fontSize: 16,
     flex: 1,
     marginRight: 8,
   },
-  timeText: {
+  messageTime: {
     fontSize: 12,
   },
-  messageText: {
+  lastMessage: {
     fontSize: 14,
     lineHeight: 20,
   },

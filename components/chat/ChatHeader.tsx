@@ -10,7 +10,7 @@ interface ChatHeaderProps {
   recipientName: string;
   recipientPhotoURL?: string;
   recipientTitle?: string;
-  onBack: () => void;
+  onBack?: () => void;
   onViewProfile: () => void;
 }
 
@@ -41,7 +41,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         
         <TouchableOpacity 
           style={styles.profileSection}
-          onPress={onViewProfile}
+          //onPress={onViewProfile}
           activeOpacity={0.7}
         >
           <Avatar
@@ -70,13 +70,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         </TouchableOpacity>
       </View>
       
-      <View style={styles.rightSection}>
+      {/* <View style={styles.rightSection}>
         <IconButton
           icon={<Icons.User size={22} color={theme.colors.text.primary} />}
           variant="ghost"
           onPress={onViewProfile}
         />
-      </View>
+      </View> */}
     </View>
   );
 };

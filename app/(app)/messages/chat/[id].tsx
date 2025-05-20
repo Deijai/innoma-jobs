@@ -1,14 +1,15 @@
-// app/(app)/messages/chat/[id].tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { 
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView, 
   StyleSheet, 
   Text, 
   View 
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
@@ -58,8 +59,32 @@ export default function ChatScreen() {
     name: 'Carregando...'
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
   
   const flatListRef = useRef<FlatList>(null);
+
+  // Rolar para o final da lista quando a tela receber foco
+  useFocusEffect(
+    React.useCallback(() => {
+      // Quando a tela recebe foco, verifica se há mensagens e rola para o final
+      if (messages.length > 0 && flatListRef.current && messagesLoaded) {
+        scrollToEnd();
+      }
+      
+      return () => {
+        // Cleanup quando a tela perde o foco (opcional)
+      };
+    }, [messages.length, messagesLoaded])
+  );
+
+  // Função para rolar até o final da lista de mensagens
+  const scrollToEnd = (animated = true) => {
+    setTimeout(() => {
+      if (flatListRef.current) {
+        flatListRef.current.scrollToEnd({ animated });
+      }
+    }, 200); // Atraso para garantir que a lista tenha sido renderizada
+  };
 
   // Carregar detalhes da conversa e configurar listener de mensagens
   useEffect(() => {
@@ -82,10 +107,13 @@ export default function ChatScreen() {
           // Configurar listener para novas mensagens
           unsubscribe = subscribeToMessages(conversationId, (newMessages) => {
             setMessages(newMessages);
+            setMessagesLoaded(true);
             
             // Marcar mensagens como lidas quando chegarem novas
             if (newMessages.length > 0) {
               markMessagesAsRead(conversationId, user.uid);
+              // Tentar rolar até o final quando chegam novas mensagens
+              scrollToEnd();
             }
           });
         }
@@ -108,7 +136,7 @@ export default function ChatScreen() {
   }, [conversationId, user?.uid]);
 
   // Função para buscar detalhes da conversa
-  const fetchConversationDetails = async (): Promise<ConversationDetails | null> => {
+  const fetchConversationDetails = async (): Promise<{id: string; participants: string[]; recipientInfo: RecipientInfo} | null> => {
     try {
       if (!user?.uid || !conversationId) {
         return null;
@@ -208,9 +236,7 @@ export default function ChatScreen() {
       await sendNewMessage(conversationId, user.uid, text);
       
       // Rolar para o final depois de enviar a mensagem
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      scrollToEnd();
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       showToast('Erro ao enviar mensagem', 'error');
@@ -219,33 +245,14 @@ export default function ChatScreen() {
 
   // Voltar para a lista de conversas
   const handleBack = () => {
-    router.back();
+    router.replace('/messages');
   };
 
   // Visualizar perfil do destinatário
   const handleViewProfile = () => {
     if (recipientInfo.id) {
-      router.push(`/profile/view/${recipientInfo.id}`);
+      router.push(`/(profile)/view/${recipientInfo.id}`);
     }
-  };
-
-  // Renderizar uma mensagem
-  const renderMessage = ({ item, index }: { item: Message, index: number }) => {
-    const isOwn = user?.uid === item.senderId;
-    
-    // Verificar se deve mostrar o horário (última mensagem ou mudança de dia)
-    const showTime = index === messages.length - 1 || 
-      (index < messages.length - 1 && 
-        new Date(messages[index + 1].createdAt?.toDate()).getDate() !== 
-        new Date(item.createdAt.toDate()).getDate());
-    
-    return (
-      <MessageBubble 
-        message={item}
-        isOwn={isOwn}
-        showTime={showTime}
-      />
-    );
   };
 
   // Separador de data entre mensagens
@@ -260,15 +267,21 @@ export default function ChatScreen() {
     } else if (date.toDateString() === yesterday.toDateString()) {
       dateText = 'Ontem';
     } else {
-      dateText = date.toLocaleDateString();
+      dateText = date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
     }
     
     return (
       <View style={styles.dateSeparator}>
         <View style={[styles.dateLine, { backgroundColor: theme.colors.border }]} />
-        <Text style={[styles.dateText, { color: theme.colors.text.secondary }]}>
-          {dateText}
-        </Text>
+        <View style={[styles.dateBubble, { backgroundColor: theme.colors.card }]}>
+          <Text style={[styles.dateText, { color: theme.colors.text.secondary }]}>
+            {dateText}
+          </Text>
+        </View>
         <View style={[styles.dateLine, { backgroundColor: theme.colors.border }]} />
       </View>
     );
@@ -302,22 +315,37 @@ export default function ChatScreen() {
   };
 
   // Renderizar um item da lista (mensagem ou separador de data)
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item, index }: { item: any, index: number }) => {
     if (item.type === 'dateSeparator') {
       return renderDateSeparator(item.date);
     }
     
-    return renderMessage({ item, index: messages.indexOf(item as Message) });
+    const isOwn = user?.uid === item.senderId;
+    
+    // Verificar se deve mostrar o horário (última mensagem ou mudança de dia)
+    const showTime = index === messages.length - 1 || 
+      (index < messages.length - 1 && 
+        messages[index + 1] && 
+        messages[index + 1].createdAt && 
+        item.createdAt && 
+        new Date(messages[index + 1].createdAt?.toDate()).getDate() !== 
+        new Date(item.createdAt.toDate()).getDate());
+    
+    return (
+      <MessageBubble 
+        message={item}
+        isOwn={isOwn}
+        showTime={showTime}
+      />
+    );
   };
 
-  // Rolar para o final da lista quando novas mensagens chegarem
+  // Rolar para o final quando as mensagens forem carregadas inicialmente
   useEffect(() => {
-    if (messages.length > 0 && flatListRef.current) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+    if (messagesLoaded && messages.length > 0 && !isLoading) {
+      scrollToEnd(false);
     }
-  }, [messages]);
+  }, [messagesLoaded, isLoading]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -332,38 +360,53 @@ export default function ChatScreen() {
         onViewProfile={handleViewProfile}
       />
       
-      {/* Área de mensagens */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.text.secondary }]}>
-            Carregando mensagens...
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={getProcessedMessages()}
-          renderItem={renderItem}
-          keyExtractor={item => ('id' in item) ? item.id : `item-${Math.random()}`}
-          contentContainerStyle={styles.messagesList}
-          inverted={false}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
-                Nenhuma mensagem ainda. Comece a conversa!
-              </Text>
-            </View>
-          }
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        {/* Área de mensagens */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.text.secondary }]}>
+              Carregando mensagens...
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={getProcessedMessages()}
+            renderItem={renderItem}
+            keyExtractor={(item) => ('id' in item) ? item.id : `item-${Math.random()}`}
+            contentContainerStyle={styles.messagesList}
+            inverted={false}
+            onContentSizeChange={() => {
+              if (messagesLoaded) {
+                scrollToEnd(false);
+              }
+            }}
+            onLayout={() => {
+              if (messagesLoaded) {
+                scrollToEnd(false);
+              }
+            }}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
+                  Nenhuma mensagem ainda. Comece a conversa!
+                </Text>
+              </View>
+            }
+          />
+        )}
+        
+        {/* Input de mensagem */}
+        <MessageInput 
+          onSendMessage={handleSendMessage}
+          disabled={isLoading}
         />
-      )}
-      
-      {/* Input de mensagem */}
-      <MessageInput 
-        onSendMessage={handleSendMessage}
-        disabled={isLoading}
-      />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -372,6 +415,159 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  // Estilos do cabeçalho
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    paddingVertical: 12,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
+  },
+  recipientInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerTextContainer: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  recipientName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  recipientTitle: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  viewProfileButton: {
+    padding: 6,
+  },
+  
+  // Estilos das mensagens
+  messagesList: {
+    flexGrow: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+  },
+  messageBubbleContainer: {
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  ownMessageContainer: {
+    justifyContent: 'flex-end',
+    marginLeft: 60, // Espaço para mensagens próprias ficarem mais à direita
+  },
+  otherMessageContainer: {
+    justifyContent: 'flex-start',
+    marginRight: 60, // Espaço para mensagens de outros ficarem mais à esquerda
+  },
+  messageBubble: {
+    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    maxWidth: '100%',
+    minWidth: 40,
+  },
+  ownMessage: {
+    borderBottomRightRadius: 4, // Formato de balão
+  },
+  otherMessage: {
+    borderBottomLeftRadius: 4, // Formato de balão
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  messageTime: {
+    fontSize: 11,
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  messageStatus: {
+    marginLeft: 4,
+    alignSelf: 'flex-end',
+    marginBottom: 2,
+  },
+  
+  // Estilos do separador de data
+  dateSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+    marginHorizontal: 8,
+  },
+  dateLine: {
+    flex: 1,
+    height: 1,
+  },
+  dateBubble: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginHorizontal: 8,
+  },
+  dateText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  
+  // Estilos do input
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    paddingVertical: 10,
+  },
+  textInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 40,
+    maxHeight: 120,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  attachButton: {
+    marginRight: 8,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingTop: 0,
+    paddingBottom: 0,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  // Estilos de estados de carregamento e vazios
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -381,32 +577,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
   },
-  messagesList: {
-    flexGrow: 1,
-    paddingVertical: 16,
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
+    paddingTop: 100,
   },
   emptyText: {
     fontSize: 16,
     textAlign: 'center',
+    opacity: 0.8,
   },
-  dateSeparator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-    paddingHorizontal: 16,
-  },
-  dateLine: {
-    flex: 1,
-    height: 1,
-  },
-  dateText: {
-    fontSize: 12,
-    marginHorizontal: 8,
-  }
 });

@@ -18,19 +18,19 @@ import {
   View,
 } from 'react-native';
 import uuid from 'react-native-uuid';
-import { EducationManager } from '../../../components/profile/EducationManager';
-import { ExpandableSection } from '../../../components/profile/ExpandableSection';
-import { ExperienceManager } from '../../../components/profile/ExperienceManager';
-import { LanguageManager } from '../../../components/profile/LanguageManager';
-import { PersonalInfoForm } from '../../../components/profile/PersonalInfoForm';
-import { ProfilePhotoEditor } from '../../../components/profile/ProfilePhotoEditor';
-import { SkillsManager } from '../../../components/profile/SkillsManager';
-import { Button } from '../../../components/ui/Button';
-import { Divider } from '../../../components/ui/Divider';
-import { LoadingOverlay } from '../../../components/ui/LoadingOverlay';
-import { ProgressBar } from '../../../components/ui/ProgressBar';
-import { useToast } from '../../../components/ui/Toast';
-import { db } from '../../../services/firebase';
+import { EducationManager } from '../../components/profile/EducationManager';
+import { ExpandableSection } from '../../components/profile/ExpandableSection';
+import { ExperienceManager } from '../../components/profile/ExperienceManager';
+import { LanguageManager } from '../../components/profile/LanguageManager';
+import { PersonalInfoForm } from '../../components/profile/PersonalInfoForm';
+import { ProfilePhotoEditor } from '../../components/profile/ProfilePhotoEditor';
+import { SkillsManager } from '../../components/profile/SkillsManager';
+import { Button } from '../../components/ui/Button';
+import { Divider } from '../../components/ui/Divider';
+import { LoadingOverlay } from '../../components/ui/LoadingOverlay';
+import { ProgressBar } from '../../components/ui/ProgressBar';
+import { useToast } from '../../components/ui/Toast';
+import { db } from '../../services/firebase';
 
 // Interfaces para os dados
 interface Education {
@@ -386,7 +386,7 @@ export default function EditProfileScreen() {
       }
 
       showToast('Perfil atualizado com sucesso', 'success');
-      router.push(`/(app)/profile`);
+      //router.push(`/(profile)/edit`);
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
       showToast('Erro ao salvar perfil', 'error');

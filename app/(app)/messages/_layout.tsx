@@ -15,11 +15,12 @@ export default function MessagesLayout() {
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
-        <Stack.Screen name="index" />
-        <Stack.Screen 
-          name="chat/[id]" 
+        <Stack.Screen name="index" options={{
+          animation: 'slide_from_right',
+        }} />
+        <Stack.Screen
+          name="chat/[id]"
           options={{
-            presentation: 'modal',
             animation: 'slide_from_right',
           }}
         />

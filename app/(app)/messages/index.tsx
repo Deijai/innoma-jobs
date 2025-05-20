@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  ActivityIndicator
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -56,14 +57,6 @@ export default function MessagesScreen() {
     router.push(`/messages/chat/${conversationId}`);
   };
 
-  // Renderizar item de conversa
-  const renderConversationItem = ({ item }: { item: ChatConversation }) => (
-    <ConversationItem
-      conversation={item}
-      onPress={navigateToChat}
-    />
-  );
-
   // Renderizar quando não há conversas
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -73,7 +66,7 @@ export default function MessagesScreen() {
           { backgroundColor: `${theme.colors.primary}15` }
         ]}
       >
-        <Icons.ChatText size={32} color={theme.colors.primary} />
+        <Icons.ChatText size={32} color={theme.colors.primary} weight="fill" />
       </View>
       
       <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>
@@ -92,16 +85,35 @@ export default function MessagesScreen() {
     </View>
   );
 
+  // Renderizar estado de carregamento
+  const renderLoadingState = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={theme.colors.primary} />
+      <Text style={[styles.loadingText, { color: theme.colors.text.secondary }]}>
+        Carregando conversas...
+      </Text>
+    </View>
+  );
+
   const filteredConversations = getFilteredConversations();
+  const hasUnreadMessages = conversations.some(c => c.unreadCount > 0);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={isDark ? "light" : "dark"} />
       
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-          Mensagens
-        </Text>
+        <View style={styles.headerTop}>
+          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
+            Mensagens
+          </Text>
+          
+          {hasUnreadMessages && (
+            <View style={[styles.headerBadge, { backgroundColor: theme.colors.primary }]}>
+              <Text style={styles.headerBadgeText}>Novas</Text>
+            </View>
+          )}
+        </View>
         
         <Input
           placeholder="Buscar conversas..."
@@ -112,25 +124,34 @@ export default function MessagesScreen() {
         />
       </View>
       
-      <FlatList
-        data={filteredConversations}
-        renderItem={renderConversationItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.listContainer,
-          filteredConversations.length === 0 && styles.emptyList,
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[theme.colors.primary]}
-            tintColor={theme.colors.primary}
-          />
-        }
-        ListEmptyComponent={isLoading ? null : renderEmptyState()}
-      />
+      {isLoading && !refreshing ? (
+        renderLoadingState()
+      ) : (
+        <FlatList
+          data={filteredConversations}
+          renderItem={({ item }) => (
+            <ConversationItem 
+              conversation={item} 
+              onPress={navigateToChat}
+            />
+          )}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[
+            styles.listContainer,
+            filteredConversations.length === 0 && styles.emptyList,
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
+          ListEmptyComponent={!isLoading ? renderEmptyState() : null}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -141,11 +162,27 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 16,
+    paddingVertical: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 16,
+  },
+  headerBadge: {
+    marginLeft: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  headerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   searchContainer: {
     marginBottom: 0,
@@ -179,8 +216,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
+    paddingHorizontal: 20,
   },
   exploreButton: {
     width: 200,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
   },
 });

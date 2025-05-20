@@ -33,7 +33,7 @@ export const useStartChat = () => {
       const conversationId = await startConversation(recipientId);
       
       // Navegar para a tela de chat
-      router.push(`/messages/chat/${conversationId}`);
+      router.navigate(`/(app)/messages/chat/${conversationId}`);
     } catch (error) {
       console.error('Erro ao iniciar conversa:', error);
       showToast('Erro ao iniciar conversa', 'error');

@@ -10,7 +10,8 @@ import {
   subscribeToMessages,
   sendMessage as sendMessageService,
   getOrCreateConversation,
-  markMessagesAsRead
+  markMessagesAsRead,
+  getUnreadMessagesCount // Será necessário adicionar esta função ao serviço
 } from '../services/chatService';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -126,12 +127,26 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         rawConversations.map(async (conv) => {
           const recipientInfo = await getRecipientInfo(conv.participants);
           
+          // Obter número de mensagens não lidas para esta conversa
+          let unreadCount = 0;
+          try {
+            // Se você tiver a função getUnreadMessagesCount no seu serviço
+            unreadCount = await getUnreadMessagesCount(conv.id, user.uid);
+          } catch (error) {
+            console.error(`Erro ao obter mensagens não lidas para conversa ${conv.id}:`, error);
+            // Fallback: buscar todas as mensagens e contar manualmente
+            const allMessages = await getMessages(conv.id);
+            unreadCount = allMessages.filter(msg => 
+              msg.senderId !== user.uid && !msg.read
+            ).length;
+          }
+          
           return {
             ...conv,
             recipientInfo,
             lastMessageText: conv.lastMessage?.text || '',
             lastMessageTime: conv.lastMessage?.timestamp?.toDate() || new Date(),
-            unreadCount: 0, // Será atualizado pelo listener de mensagens não lidas
+            unreadCount: unreadCount,
           };
         })
       );
@@ -178,7 +193,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Carregar mensagens da conversa atual
+  // Atualizar unreadCount quando a conversa atual mudar
   useEffect(() => {
     if (!currentConversationId || !user) return;
     
@@ -186,6 +201,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const markAsRead = async () => {
       try {
         await markMessagesAsRead(currentConversationId, user.uid);
+        
+        // Atualizar o unreadCount para esta conversa
+        setConversations(prev => prev.map(conv => 
+          conv.id === currentConversationId 
+            ? { ...conv, unreadCount: 0 } // Reset unreadCount para a conversa atual
+            : conv
+        ));
       } catch (error) {
         console.error('Erro ao marcar mensagens como lidas:', error);
       }
@@ -216,12 +238,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         newConversations.map(async (conv) => {
           const recipientInfo = await getRecipientInfo(conv.participants);
           
+          // Obter número de mensagens não lidas para esta conversa
+          // Se estiver na conversa atual, unreadCount é 0
+          let unreadCount = 0;
+          if (conv.id !== currentConversationId) {
+            try {
+              // Se você tiver a função getUnreadMessagesCount no seu serviço
+              unreadCount = await getUnreadMessagesCount(conv.id, user.uid);
+            } catch (error) {
+              // Fallback: buscar todas as mensagens e contar manualmente
+              const allMessages = await getMessages(conv.id);
+              unreadCount = allMessages.filter(msg => 
+                msg.senderId !== user.uid && !msg.read
+              ).length;
+            }
+          }
+          
           return {
             ...conv,
             recipientInfo,
             lastMessageText: conv.lastMessage?.text || '',
             lastMessageTime: conv.lastMessage?.timestamp?.toDate() || new Date(),
-            unreadCount: 0, // Será atualizado pelo listener de mensagens não lidas
+            unreadCount: unreadCount,
           };
         })
       );
@@ -232,7 +270,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       unsubscribe();
     };
-  }, [user]);
+  }, [user, currentConversationId]);
 
   const refreshConversations = async () => {
     await loadConversations();

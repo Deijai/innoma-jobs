@@ -17,15 +17,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Avatar } from '../../../components/ui/Avatar';
-import { Badge } from '../../../components/ui/Badge';
-import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
-import { IconButton } from '../../../components/ui/IconButton';
-import { ProgressBar } from '../../../components/ui/ProgressBar';
-import { SkeletonProfileHeader } from '../../../components/ui/Skeleton';
-import { useToast } from '../../../components/ui/Toast';
-import { db } from '../../../services/firebase';
+import { Avatar } from '../../components/ui/Avatar';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { IconButton } from '../../components/ui/IconButton';
+import { ProgressBar } from '../../components/ui/ProgressBar';
+import { SkeletonProfileHeader } from '../../components/ui/Skeleton';
+import { useToast } from '../../components/ui/Toast';
+import { db } from '../../services/firebase';
 
 // Interface for profile data
 interface ProfileData {
@@ -159,7 +159,7 @@ export default function ProfileScreen() {
 
   // Navigate to profile edit screen
   const navigateToEditProfile = () => {
-    router.push('/profile/edit');
+    router.push('/(profile)/edit');
   };
 
   // Share profile
